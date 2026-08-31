@@ -322,11 +322,60 @@ export function normalizeGeminiTools(payload) {
     if (!Array.isArray(payload.tools)) {
         return { toolDebugMissing, toolDebugSummaries };
     }
+    const placeholderSchema = {
+        type: "OBJECT",
+        properties: {
+            _placeholder: {
+                type: "BOOLEAN",
+                description: "Placeholder. Always pass true.",
+            },
+        },
+        required: ["_placeholder"],
+    };
     payload.tools = payload.tools.map((tool, toolIndex) => {
         const t = tool;
         // Skip normalization for Google Search tools (both old and new API)
         if (t.googleSearch || t.googleSearchRetrieval) {
             return t;
+        }
+        // Handle pre-wrapped functionDeclarations format (e.g. from @ai-sdk/google)
+        if (Array.isArray(t.functionDeclarations)) {
+            const normalizedDeclarations = t.functionDeclarations.map((decl, declIndex) => {
+                const d = decl;
+                const schemaCandidates = [
+                    d.parameters,
+                    d.parametersJsonSchema,
+                    d.input_schema,
+                    d.inputSchema,
+                ].filter(Boolean);
+                let schema = schemaCandidates[0];
+                const schemaObjectOk = schema && typeof schema === "object" && !Array.isArray(schema);
+                if (!schemaObjectOk) {
+                    schema = placeholderSchema;
+                    toolDebugMissing += 1;
+                }
+                else {
+                    schema = toGeminiSchema(schema);
+                }
+                const name = String(d.name || `tool-${toolIndex}-${declIndex}`);
+                toolDebugSummaries.push(`decl=${name},src=functionDeclarations,hasSchema=${schemaObjectOk ? "y" : "n"}`);
+                return {
+                    ...d,
+                    name,
+                    description: String(d.description || ""),
+                    parameters: schema,
+                };
+            });
+            const newTool = {
+                ...t,
+                functionDeclarations: normalizedDeclarations,
+            };
+            delete newTool.parameters;
+            delete newTool.input_schema;
+            delete newTool.inputSchema;
+            delete newTool.custom;
+            delete newTool.function;
+            return newTool;
         }
         const newTool = { ...t };
         const schemaCandidates = [
@@ -339,16 +388,6 @@ export function normalizeGeminiTools(payload) {
             newTool.input_schema,
             newTool.inputSchema,
         ].filter(Boolean);
-        const placeholderSchema = {
-            type: "OBJECT",
-            properties: {
-                _placeholder: {
-                    type: "BOOLEAN",
-                    description: "Placeholder. Always pass true.",
-                },
-            },
-            required: ["_placeholder"],
-        };
         let schema = schemaCandidates[0];
         const schemaObjectOk = schema && typeof schema === "object" && !Array.isArray(schema);
         if (!schemaObjectOk) {
