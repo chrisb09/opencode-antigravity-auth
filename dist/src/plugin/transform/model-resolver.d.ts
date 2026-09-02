@@ -64,6 +64,11 @@ export declare function resolveAntigravityGemini36FlashBackendModel(model: strin
  * Minimal is retained as a compatibility alias for low, but is not advertised.
  */
 export declare function resolveAntigravityGemini37FlashBackendModel(model: string, thinkingLevel?: string): string | undefined;
+/**
+ * AGY exposes Gemini 3.8 Flash only through tier-specific backend ids.
+ * Minimal is retained as a compatibility alias for low, but is not advertised.
+ */
+export declare function resolveAntigravityGemini38FlashBackendModel(model: string, thinkingLevel?: string): string | undefined;
 export declare function getDefaultGemini3ThinkingLevel(model: string): string;
 /** Models released on the public Gemini API without a verified Antigravity route. */
 export declare function isGeminiPublicOnlyModel(model: string): boolean;

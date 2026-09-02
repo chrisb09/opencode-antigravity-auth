@@ -1,5 +1,11 @@
 # Antigravity + Gemini CLI OAuth Plugin for Opencode
 
+> **Fork Enhancements & Fixes:**
+> - **Gemini 3.8 Flash & 3.7 Flash Support:** Adds full support for `gemini-3.8-flash` / `antigravity-gemini-3.8-flash` and `gemini-3.7-flash` / `antigravity-gemini-3.7-flash`, automatically resolving thinking levels (`low`, `medium`, `high`) to the Antigravity CLI (`agy`) tier-specific backend model IDs.
+> - **AGY Protocol & Project Discovery Fix:** Fixed `loadCodeAssist` and `onboardUser` metadata payload (rejects invalid `platform` field that broke managed project discovery and caused 400 errors) and updated consumer fallback project to `default-cli-project`.
+> - **Official CLI User-Agent:** Sends the official Antigravity CLI User-Agent to prevent 404 errors on newer models gated behind CLI client identification.
+> - **Direct GitHub Install:** Tracks pre-built `dist/` artifacts so you can install and use this fork directly via GitHub without a separate build step (e.g. `"github:chrisb09/opencode-antigravity-auth"`).
+
 [![npm version](https://img.shields.io/npm/v/opencode-antigravity-auth.svg)](https://www.npmjs.com/package/opencode-antigravity-auth)
 [![npm beta](https://img.shields.io/npm/v/opencode-antigravity-auth/beta.svg?label=beta)](https://www.npmjs.com/package/opencode-antigravity-auth)
 [![npm downloads](https://img.shields.io/npm/dw/opencode-antigravity-auth.svg)](https://www.npmjs.com/package/opencode-antigravity-auth)
@@ -118,7 +124,8 @@ opencode run "Hello" --model=google/antigravity-claude-opus-4-6-thinking --varia
 | `antigravity-gemini-3-flash` | minimal, low, medium, high | Gemini 3 Flash with thinking |
 | `antigravity-gemini-3.5-flash` | minimal, low, medium, high | Gemini 3.5 Flash with thinking (rollout-dependent) |
 | `antigravity-gemini-3.6-flash` | low, medium, high | Gemini 3.6 Flash with thinking (medium default) |
-| `antigravity-gemini-3.7-flash` | minimal, low, medium, high | Gemini 3.7 Flash with thinking |
+| `antigravity-gemini-3.7-flash` | low, medium, high | Gemini 3.7 Flash with thinking |
+| `antigravity-gemini-3.8-flash` | low, medium, high | Gemini 3.8 Flash with thinking |
 | `antigravity-claude-sonnet-4-6` | — | Claude Sonnet 4.6 |
 | `antigravity-claude-opus-4-6-thinking` | low, max | Claude Opus 4.6 with extended thinking |
 
@@ -137,6 +144,7 @@ The official Antigravity SDK uses `GEMINI_API_KEY` for local Gemini access. This
 | `gemini-3.5-flash-lite` | Gemini 3.5 Flash-Lite (minimal default) |
 | `gemini-3.6-flash` | Gemini 3.6 Flash (medium default) |
 | `gemini-3.7-flash` | Gemini 3.7 Flash |
+| `gemini-3.8-flash` | Gemini 3.8 Flash |
 | `gemini-3-pro-preview` | Gemini 3 Pro (preview) |
 | `gemini-3.1-pro` | Gemini 3.1 Pro |
 | `gemini-3.1-pro-preview-customtools` | Gemini 3.1 Pro Preview Custom Tools |
@@ -224,7 +232,16 @@ Add this to your `~/.config/opencode/opencode.json`:
           "limit": { "context": 1048576, "output": 65536 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
           "variants": {
-            "minimal": { "thinkingLevel": "minimal" },
+            "low": { "thinkingLevel": "low" },
+            "medium": { "thinkingLevel": "medium" },
+            "high": { "thinkingLevel": "high" }
+          }
+        },
+        "antigravity-gemini-3.8-flash": {
+          "name": "Gemini 3.8 Flash (Antigravity)",
+          "limit": { "context": 1048576, "output": 65536 },
+          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
+          "variants": {
             "low": { "thinkingLevel": "low" },
             "medium": { "thinkingLevel": "medium" },
             "high": { "thinkingLevel": "high" }
@@ -286,6 +303,17 @@ Add this to your `~/.config/opencode/opencode.json`:
         },
         "gemini-3.7-flash": {
           "name": "Gemini 3.7 Flash (Gemini CLI)",
+          "limit": { "context": 1048576, "output": 65536 },
+          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
+          "variants": {
+            "minimal": { "thinkingLevel": "minimal" },
+            "low": { "thinkingLevel": "low" },
+            "medium": { "thinkingLevel": "medium" },
+            "high": { "thinkingLevel": "high" }
+          }
+        },
+        "gemini-3.8-flash": {
+          "name": "Gemini 3.8 Flash (Gemini CLI)",
           "limit": { "context": 1048576, "output": 65536 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
           "variants": {

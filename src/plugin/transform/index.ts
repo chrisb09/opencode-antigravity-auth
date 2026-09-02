@@ -26,6 +26,7 @@ export {
   resolveAntigravityGemini35FlashBackendModel,
   resolveAntigravityGemini36FlashBackendModel,
   resolveAntigravityGemini37FlashBackendModel,
+  resolveAntigravityGemini38FlashBackendModel,
   getDefaultGemini3ThinkingLevel,
   isGeminiPublicOnlyModel,
   getModelFamily,

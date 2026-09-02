@@ -34,7 +34,7 @@ export const GEMINI_3_THINKING_LEVELS = [
  * - Claude non-thinking: claude-{model} (no -thinking suffix)
  */
 export const MODEL_ALIASES = {
-    "gemini-flash-latest": "gemini-3.7-flash",
+    "gemini-flash-latest": "gemini-3.8-flash",
     "gemini-flash-lite-latest": "gemini-3.5-flash-lite",
     // Gemini 3 variants - for Gemini CLI only (tier stripped, thinkingLevel used)
     // For Antigravity, these are bypassed and full model name is kept
@@ -49,6 +49,10 @@ export const MODEL_ALIASES = {
     "gemini-3.7-flash-low": "gemini-3.7-flash",
     "gemini-3.7-flash-medium": "gemini-3.7-flash",
     "gemini-3.7-flash-high": "gemini-3.7-flash",
+    "gemini-3.8-flash-minimal": "gemini-3.8-flash",
+    "gemini-3.8-flash-low": "gemini-3.8-flash",
+    "gemini-3.8-flash-medium": "gemini-3.8-flash",
+    "gemini-3.8-flash-high": "gemini-3.8-flash",
     // Claude proxy names (gemini- prefix for compatibility)
     "gemini-claude-opus-4-6-thinking-low": "claude-opus-4-6-thinking",
     "gemini-claude-opus-4-6-thinking-medium": "claude-opus-4-6-thinking",
@@ -76,6 +80,12 @@ const GEMINI_37_FLASH_MODELS = {
     low: "gemini-3.7-flash-low",
     medium: "gemini-3.7-flash-medium",
     high: "gemini-3.7-flash-high",
+};
+const GEMINI_38_FLASH_REGEX = /^gemini-3\.8-flash(?:-(minimal|low|medium|high))?$/i;
+const GEMINI_38_FLASH_MODELS = {
+    low: "gemini-3.8-flash-low",
+    medium: "gemini-3.8-flash-medium",
+    high: "gemini-3.8-flash-high",
 };
 const GEMINI_PUBLIC_ONLY_REGEX = /^(?:gemini-3\.5-flash-lite(?:-(?:minimal|low|medium|high))?|gemini-flash-lite-latest)$/i;
 /**
@@ -193,6 +203,23 @@ export function resolveAntigravityGemini37FlashBackendModel(model, thinkingLevel
     }
     return GEMINI_37_FLASH_MODELS[level];
 }
+/**
+ * AGY exposes Gemini 3.8 Flash only through tier-specific backend ids.
+ * Minimal is retained as a compatibility alias for low, but is not advertised.
+ */
+export function resolveAntigravityGemini38FlashBackendModel(model, thinkingLevel) {
+    const modelWithoutQuota = model.replace(QUOTA_PREFIX_REGEX, "");
+    const match = modelWithoutQuota.match(GEMINI_38_FLASH_REGEX);
+    if (!match) {
+        return undefined;
+    }
+    const requestedLevel = (thinkingLevel ?? match[1] ?? "low").toLowerCase();
+    const level = requestedLevel === "minimal" ? "low" : requestedLevel;
+    if (level !== "low" && level !== "medium" && level !== "high") {
+        return undefined;
+    }
+    return GEMINI_38_FLASH_MODELS[level];
+}
 export function getDefaultGemini3ThinkingLevel(model) {
     const normalized = model.toLowerCase().replace(QUOTA_PREFIX_REGEX, "");
     if (/^gemini-3\.6-flash(?:-|$)/.test(normalized)) {
@@ -257,10 +284,17 @@ export function resolveModelWithTier(requestedModel, options = {}) {
     let effectiveTier = tier;
     let antigravityModel = modelWithoutQuota;
     if (skipAlias) {
+        const gemini38FlashBackendModel = resolveAntigravityGemini38FlashBackendModel(modelWithoutQuota, effectiveTier);
         const gemini37FlashBackendModel = resolveAntigravityGemini37FlashBackendModel(modelWithoutQuota, effectiveTier);
         const gemini36FlashBackendModel = resolveAntigravityGemini36FlashBackendModel(modelWithoutQuota, effectiveTier);
         const gemini35FlashBackendModel = resolveAntigravityGemini35FlashBackendModel(modelWithoutQuota, effectiveTier);
-        if (gemini37FlashBackendModel) {
+        if (gemini38FlashBackendModel) {
+            antigravityModel = gemini38FlashBackendModel;
+            if (String(effectiveTier) === "minimal") {
+                effectiveTier = "low";
+            }
+        }
+        else if (gemini37FlashBackendModel) {
             antigravityModel = gemini37FlashBackendModel;
             if (String(effectiveTier) === "minimal") {
                 effectiveTier = "low";

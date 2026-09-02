@@ -244,6 +244,7 @@ const PUBLIC_GEMINI_API_MODEL_SUGGESTIONS = [
     "gemini-3.5-flash",
     "gemini-3.6-flash",
     "gemini-3.7-flash",
+    "gemini-3.8-flash",
 ];
 /**
  * Bare Gemini ids that the Antigravity Code Assist backend serves but the public

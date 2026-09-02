@@ -50,7 +50,7 @@ The plugin accepts different variant formats depending on the model family:
 
 Gemini 3 models use string-based thinking levels. Available levels differ by model:
 
-| Level | 3/3.5 Flash | 3.6 Flash | 3.5 Flash-Lite | Pro | Description |
+| Level | 3/3.5/3.7/3.8 Flash | 3.6 Flash | 3.5 Flash-Lite | Pro | Description |
 |-------|-------------|-----------|----------------|-----|-------------|
 | `minimal` | ✅ | ❌ | ✅ | ❌ | Minimal thinking, lowest latency |
 | `low` | ✅ | Antigravity only | ✅ | ✅ | Light thinking |
