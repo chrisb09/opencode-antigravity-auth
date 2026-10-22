@@ -4,6 +4,7 @@
 
 ### Added
 
+- **OpenCode V2 support** - Added a V2 server entrypoint (`v2/`) and TUI plugin (`tui/`) while keeping the V1 root entrypoint. V2 includes credential-to-account-pool sync, live account rotation, quota/switch/toggle/verify TUI commands, update-checker support for V2 `plugins` config, and a pruned model catalog. V1 behavior remains unchanged.
 - **Gemini 3.8 Flash** - Added stable `gemini-3.8-flash` and `antigravity-gemini-3.8-flash` model support with thinking variants (`low`, `medium`, `high` for Antigravity, plus `minimal` for Gemini CLI/public path). The `gemini-flash-latest` alias now resolves to `gemini-3.8-flash`.
 - **Gemini 3.7 Flash** - Added stable `gemini-3.7-flash` and `antigravity-gemini-3.7-flash` model support with thinking variants (`minimal`, `low`, `medium`, `high`).
 - **Dynamic Antigravity Registry Pulling & Caching** - Discovered Antigravity models from `POST /v1internal:fetchAvailableModels` are now automatically cataloged, cached, and registered with dynamically inferred thinking variants for newly released models. When OpenCode initializes, model discovery can automatically authenticate using configured OAuth accounts to pull the latest models from the Antigravity registry.

@@ -20,6 +20,19 @@ function getConfigPaths(directory) {
         USER_OPENCODE_CONFIG_JSONC,
     ];
 }
+function pluginTarget(entry) {
+    if (typeof entry === "string")
+        return entry;
+    if (entry && typeof entry === "object" && typeof entry.package === "string") {
+        return entry.package;
+    }
+    return null;
+}
+function pluginEntries(config) {
+    return [...(config.plugin ?? []), ...(config.plugins ?? [])]
+        .map(pluginTarget)
+        .filter((value) => value !== null);
+}
 export function getLocalDevPath(directory) {
     for (const configPath of getConfigPaths(directory)) {
         try {
@@ -27,8 +40,7 @@ export function getLocalDevPath(directory) {
                 continue;
             const content = fs.readFileSync(configPath, "utf-8");
             const config = JSON.parse(stripJsonComments(content));
-            const plugins = config.plugin ?? [];
-            for (const entry of plugins) {
+            for (const entry of pluginEntries(config)) {
                 if (entry.startsWith("file://") && entry.includes(PACKAGE_NAME)) {
                     try {
                         return fileURLToPath(entry);
@@ -37,6 +49,8 @@ export function getLocalDevPath(directory) {
                         return entry.replace("file://", "");
                     }
                 }
+                if (path.isAbsolute(entry) && entry.includes(PACKAGE_NAME))
+                    return entry;
             }
         }
         catch {
@@ -96,8 +110,7 @@ export function findPluginEntry(directory) {
                 continue;
             const content = fs.readFileSync(configPath, "utf-8");
             const config = JSON.parse(stripJsonComments(content));
-            const plugins = config.plugin ?? [];
-            for (const entry of plugins) {
+            for (const entry of pluginEntries(config)) {
                 if (entry === PACKAGE_NAME) {
                     return { entry, isPinned: false, pinnedVersion: null, configPath };
                 }
@@ -148,7 +161,7 @@ export function updatePinnedVersion(configPath, oldEntry, newVersion) {
     try {
         const content = fs.readFileSync(configPath, "utf-8");
         const newEntry = `${PACKAGE_NAME}@${newVersion}`;
-        const pluginMatch = content.match(/"plugin"\s*:\s*\[/);
+        const pluginMatch = content.match(/"(?:plugin|plugins)"\s*:\s*\[/);
         if (!pluginMatch || pluginMatch.index === undefined) {
             logAutoUpdate(`No "plugin" array found in ${configPath}`);
             return false;

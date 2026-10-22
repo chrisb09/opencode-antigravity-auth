@@ -5,6 +5,7 @@ import { authorizeAntigravity, exchangeAntigravity } from "./antigravity/oauth";
 import { accessTokenExpired, isOAuthAuth, parseRefreshParts, formatRefreshParts } from "./plugin/auth";
 import { pressEnterToContinue, promptAddAnotherAccount, promptLoginMode, promptProjectId } from "./plugin/cli";
 import { ensureProjectContext } from "./plugin/project";
+import { registerObservatoryAccount } from "./plugin/observatory";
 import { startAntigravityDebugRequest, logAntigravityDebugResponse, logAccountContext, logRateLimitEvent, logRateLimitSnapshot, logResponseBody, logModelFamily, isDebugEnabled, getLogFilePath, initializeDebug, sanitizeUrlForLog, } from "./plugin/debug";
 import { buildThinkingWarmupBody, isGenerativeLanguageRequest, prepareAntigravityRequest, transformAntigravityResponse, } from "./plugin/request";
 import { isGeminiPublicOnlyModel, resolveModelWithTier, } from "./plugin/transform/model-resolver";
@@ -2186,6 +2187,7 @@ export const createAntigravityPlugin = (providerId) => async ({ client, director
                                             toolDebugSummary: prepared.toolDebugSummary,
                                             toolDebugPayload: prepared.toolDebugPayload,
                                         });
+                                        registerObservatoryAccount(prepared.init.headers, account.email ?? account.parts?.refreshToken);
                                         await runThinkingWarmup(prepared, projectContext.effectiveProjectId);
                                         if (config.request_jitter_max_ms > 0) {
                                             const jitterMs = Math.floor(Math.random() * config.request_jitter_max_ms);

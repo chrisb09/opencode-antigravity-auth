@@ -4,7 +4,8 @@ export interface NpmDistTags {
 }
 
 export interface OpencodeConfig {
-  plugin?: string[];
+  plugin?: Array<string | { package?: string; [key: string]: unknown }>;
+  plugins?: Array<string | { package?: string; [key: string]: unknown }>;
   [key: string]: unknown;
 }
 

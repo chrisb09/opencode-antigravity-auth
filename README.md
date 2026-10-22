@@ -111,6 +111,59 @@ opencode run "Hello" --model=google/antigravity-claude-opus-4-6-thinking --varia
 
 ---
 
+## OpenCode V2
+
+This package supports OpenCode V1 and V2 from the same checkout. V1 keeps using the package root and the `google/...` model namespace. V2 uses `v2/` and the `antigravity/...` namespace.
+
+### V2 plugin
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugins": [
+    "/absolute/path/to/opencode-antigravity-auth/v2"
+  ]
+}
+```
+
+### V2 TUI
+
+Add the package root to `~/.config/opencode/cli.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/v2/cli.json",
+  "plugins": ["/absolute/path/to/opencode-antigravity-auth"]
+}
+```
+
+The V2 TUI adds:
+
+| Command | Purpose |
+| --- | --- |
+| `/antigravity` | Account menu |
+| `/antigravity-switch` | Switch the active account |
+| `/antigravity-quota` | Show live quota for every account |
+| `/antigravity-toggle` | Enable or disable an account |
+| `/antigravity-verify` | Run a generation probe for one account |
+| `/antigravity-verify-all` | Run a generation probe for every account |
+
+### V2 models
+
+V2 exposes only current, verified models:
+
+- `antigravity/antigravity-gemini-3-flash`
+- `antigravity/antigravity-gemini-3.8-flash`
+- `antigravity/antigravity-claude-sonnet-4-6`
+- `antigravity/antigravity-claude-opus-4-6-thinking`
+- `antigravity/gemini-2.5-flash`
+- `antigravity/gemini-3-flash-preview`
+- `antigravity/gemini-3.8-flash`
+
+Older Gemini entries remain in the V1 catalog but are hidden from V2.
+
+---
+
 ## Models
 
 ### Model Reference

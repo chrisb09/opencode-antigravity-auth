@@ -8,6 +8,15 @@
     "sourceMap": true,
     "allowImportingTsExtensions": false
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "index.ts"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/*.spec.ts", "src/**/*.spec.tsx"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "v2/**/*.ts", "tui/**/*.ts", "index.ts"],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.spec.ts",
+    "src/**/*.spec.tsx",
+    "v2/**/*.test.ts",
+    "v2/**/*.spec.ts",
+    "tui/**/*.test.ts",
+    "tui/**/*.spec.ts"
+  ]
 }
