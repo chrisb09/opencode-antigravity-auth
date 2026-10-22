@@ -14,6 +14,7 @@ import type { AntigravityTokenExchangeResult } from "./antigravity/oauth";
 import { accessTokenExpired, isOAuthAuth, parseRefreshParts, formatRefreshParts } from "./plugin/auth";
 import { pressEnterToContinue, promptAddAnotherAccount, promptLoginMode, promptProjectId, type LoginMenuResult } from "./plugin/cli";
 import { ensureProjectContext } from "./plugin/project";
+import { registerObservatoryAccount } from "./plugin/observatory";
 import {
   startAntigravityDebugRequest, 
   logAntigravityDebugResponse,
@@ -2726,6 +2727,7 @@ export const createAntigravityPlugin = (providerId: string) => async (
                   toolDebugPayload: prepared.toolDebugPayload,
                 });
 
+                registerObservatoryAccount(prepared.init.headers, account.email ?? account.parts?.refreshToken);
                 await runThinkingWarmup(prepared, projectContext.effectiveProjectId);
 
                 if (config.request_jitter_max_ms > 0) {
