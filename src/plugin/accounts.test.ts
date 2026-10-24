@@ -17,6 +17,20 @@ vi.mock("./storage", async (importOriginal) => {
 });
 
 describe("AccountManager", () => {
+  it("reserves a child's account without moving the primary family cursor", () => {
+    const manager = new AccountManager({ type: "oauth", refresh: "r1|p1", access: "access", expires: Date.now() + 3600000 }, {
+      version: 4,
+      accounts: [
+        { email: "a@example.com", refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+        { email: "b@example.com", refreshToken: "r2", projectId: "p2", addedAt: 1, lastUsed: 0 },
+      ], activeIndex: 0,
+    });
+    const primary = manager.getCurrentAccountForFamily("gemini");
+    expect(manager.getReservedAccount("B@example.com", "gemini")?.email).toBe("b@example.com");
+    expect(manager.getCurrentAccountForFamily("gemini")?.index).toBe(primary?.index);
+    expect(manager.getReservedAccount("missing@example.com", "gemini")).toBeNull();
+    expect(manager.getReservedAccount("b@example.com", "gemini", null, "antigravity", 100, 600000, new Set([1]))).toBeNull();
+  });
   beforeEach(() => {
     vi.useRealTimers();
     vi.stubGlobal("process", { ...process, pid: 0 });

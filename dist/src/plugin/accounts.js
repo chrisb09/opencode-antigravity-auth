@@ -545,6 +545,20 @@ export class AccountManager {
         }
         return next;
     }
+    /** A routed child owns this account; do not disturb a primary's family cursor. */
+    getReservedAccount(email, family, model, headerStyle = "antigravity", softQuotaThresholdPercent = 100, softQuotaCacheTtlMs = 10 * 60 * 1000, excludeIndices) {
+        const account = this.accounts.find(a => a.email?.toLowerCase() === email.toLowerCase());
+        if (!account || account.enabled === false || excludeIndices?.has(account.index))
+            return null;
+        clearExpiredRateLimits(account);
+        if (isRateLimitedForHeaderStyle(account, family, headerStyle, model) ||
+            isOverSoftQuotaThreshold(account, family, headerStyle, softQuotaThresholdPercent, softQuotaCacheTtlMs, model) ||
+            this.isAccountCoolingDown(account))
+            return null;
+        this.markTouchedForQuota(account, getQuotaKey(family, headerStyle, model));
+        account.lastUsed = nowMs();
+        return account;
+    }
     getNextForFamily(family, model, headerStyle = "antigravity", softQuotaThresholdPercent = 100, softQuotaCacheTtlMs = 10 * 60 * 1000, excludeIndices) {
         const available = this.accounts.filter((a) => {
             clearExpiredRateLimits(a);

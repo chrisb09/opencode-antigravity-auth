@@ -109,6 +109,9 @@ async function exchangeCredential(code: string, state: string): Promise<Credenti
 export default Plugin.define({
   id: "antigravity",
   async setup(ctx) {
+    // The shared fetch engine honors request-local quota-router account pins;
+    // Pinned requests preserve the primary family cursor and do not activate a
+    // global vault credential.
     const fakeClient = {
       app: { log: async () => {} },
       tui: { showToast: async () => {} },

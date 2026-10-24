@@ -1,4 +1,5 @@
 import { exec } from "node:child_process";
+import { consumeRoutingPin, pinnedConfig, pinnedExclusions } from "./plugin/routing-pin";
 import { tool } from "@opencode-ai/plugin";
 import {
   ANTIGRAVITY_DEFAULT_PROJECT_ID,
@@ -2015,9 +2016,17 @@ export const createAntigravityPlugin = (providerId: string) => async (
         }
       }
 
+      const loaderConfig = config;
       return {
         apiKey: "",
         async fetch(input, init) {
+          const pinned = consumeRoutingPin(input, init);
+          input = pinned.input;
+          init = pinned.init;
+          const config = pinnedConfig(loaderConfig, pinned.email);
+          if (pinned.email && accountManager.getAccountCount() === 0) {
+            throw new Error("Reserved Antigravity account is unavailable; no API-key fallback permitted");
+          }
           if (!isGenerativeLanguageRequest(input)) {
             return fetch(input, init);
           }
@@ -2056,7 +2065,7 @@ export const createAntigravityPlugin = (providerId: string) => async (
           const urlString = toUrlString(input);
           const family = getModelFamilyFromUrl(urlString);
           const model = extractModelFromUrl(urlString);
-          const agySdkCredentials = getAgySdkCredentials(config, apiKeyAuth);
+          const agySdkCredentials = pinned.email ? [] : getAgySdkCredentials(config, apiKeyAuth);
           const debugLines: string[] = [];
           const pushDebug = (line: string) => {
             if (!isDebugEnabled()) return;
@@ -2149,7 +2158,7 @@ export const createAntigravityPlugin = (providerId: string) => async (
             // (select -> refresh -> fetch/switch). If we blow far past that, the
             // routing is not converging (e.g. all accounts exhausted for an
             // Antigravity-only model) — give up gracefully instead of spinning.
-            if (++loopGuard > Math.max(50, accountCount * 8)) {
+            if (++loopGuard > (pinned.email ? 3 : Math.max(50, accountCount * 8))) {
               const guardFallback = await tryAgySdkFallbackForRequest(input, init, config, agySdkCredentials, urlString);
               if (guardFallback) return guardFallback;
               throw lastError || new Error(
@@ -2159,6 +2168,7 @@ export const createAntigravityPlugin = (providerId: string) => async (
               );
             }
             const routingDecision = resolveHeaderRoutingDecision(urlString, family, config);
+            if (pinned.email) routingDecision.allowQuotaFallback = false;
             const {
               cliFirst,
               preferredHeaderStyle,
@@ -2196,7 +2206,11 @@ export const createAntigravityPlugin = (providerId: string) => async (
             );
 
             let selectedHeaderStyle = preferredHeaderStyle;
-            let account = accountManager.getCurrentOrNextForFamily(
+            const excludedIndices = pinnedExclusions(accountManager.getAccounts(), pinned.email, triedSwitchIndices);
+            let account = pinned.email ? accountManager.getReservedAccount(
+              pinned.email, family, model, preferredHeaderStyle,
+              config.soft_quota_threshold_percent, softQuotaCacheTtlMs, triedSwitchIndices,
+            ) : accountManager.getCurrentOrNextForFamily(
               family,
               model,
               config.account_selection_strategy,
@@ -2204,7 +2218,7 @@ export const createAntigravityPlugin = (providerId: string) => async (
               config.pid_offset_enabled,
               config.soft_quota_threshold_percent,
               softQuotaCacheTtlMs,
-              triedSwitchIndices,
+              excludedIndices,
             );
 
             if (!account && allowQuotaFallback) {
@@ -2218,7 +2232,7 @@ export const createAntigravityPlugin = (providerId: string) => async (
                 config.pid_offset_enabled,
                 config.soft_quota_threshold_percent,
                 softQuotaCacheTtlMs,
-                triedSwitchIndices,
+                excludedIndices,
               );
               if (account) {
                 selectedHeaderStyle = alternateHeaderStyle;
@@ -2229,6 +2243,9 @@ export const createAntigravityPlugin = (providerId: string) => async (
             }
             
             if (!account) {
+              if (pinned.email) {
+                return new Response(JSON.stringify({ error: { code: 429, message: "Reserved Antigravity account unavailable; reroute through the quota service" } }), { status: 429, headers: { "content-type": "application/json", "retry-after": "60" } });
+              }
               // Every usable account was already tried (and switched away from)
               // during THIS request. Nothing left to route to, so give up
               // gracefully rather than waiting on accounts that won't recover
@@ -2392,7 +2409,7 @@ export const createAntigravityPlugin = (providerId: string) => async (
 
             accountManager.requestSaveToDisk();
 
-            if (onAccountSelected) {
+            if (onAccountSelected && !pinned.email) {
               try {
                 void Promise.resolve(
                   onAccountSelected({

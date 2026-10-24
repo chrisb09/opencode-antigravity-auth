@@ -124,6 +124,8 @@ export declare class AccountManager {
     shouldShowAccountToast(accountIndex: number, debounceMs?: number): boolean;
     markToastShown(accountIndex: number): void;
     getCurrentOrNextForFamily(family: ModelFamily, model?: string | null, strategy?: AccountSelectionStrategy, headerStyle?: HeaderStyle, pidOffsetEnabled?: boolean, softQuotaThresholdPercent?: number, softQuotaCacheTtlMs?: number, excludeIndices?: Set<number>): ManagedAccount | null;
+    /** A routed child owns this account; do not disturb a primary's family cursor. */
+    getReservedAccount(email: string, family: ModelFamily, model?: string | null, headerStyle?: HeaderStyle, softQuotaThresholdPercent?: number, softQuotaCacheTtlMs?: number, excludeIndices?: Set<number>): ManagedAccount | null;
     getNextForFamily(family: ModelFamily, model?: string | null, headerStyle?: HeaderStyle, softQuotaThresholdPercent?: number, softQuotaCacheTtlMs?: number, excludeIndices?: Set<number>): ManagedAccount | null;
     markRateLimited(account: ManagedAccount, retryAfterMs: number, family: ModelFamily, headerStyle?: HeaderStyle, model?: string | null): void;
     /**
