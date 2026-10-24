@@ -318,6 +318,83 @@ describe("createAntigravityPlugin auth.loader disk OAuth promotion", () => {
     }
   });
 
+  it("reports each account selected by the rotation engine", async () => {
+    vi.mocked(storageModule.loadAccounts).mockResolvedValue({
+      version: 4,
+      activeIndex: 0,
+      accounts: [
+        {
+          email: "one@example.com",
+          refreshToken: "refresh-one",
+          addedAt: 1,
+          lastUsed: 1,
+          enabled: true,
+        },
+        {
+          email: "two@example.com",
+          refreshToken: "refresh-two",
+          addedAt: 2,
+          lastUsed: 2,
+          enabled: true,
+        },
+      ],
+    });
+
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo) => {
+      const url = String(input);
+      if (url.includes("oauth2.googleapis.com")) {
+        return new Response(
+          JSON.stringify({ error: "invalid_grant", error_description: "test-stop" }),
+          { status: 400, headers: { "content-type": "application/json" } },
+        );
+      }
+      if (url.includes("generativelanguage.googleapis.com")) {
+        return new Response(JSON.stringify({ models: [] }));
+      }
+      return new Response("1.2.3");
+    }));
+
+    const selected: Array<{ index: number; email?: string }> = [];
+    try {
+      const plugin = await createAntigravityPlugin("google")({
+        client,
+        directory: process.cwd(),
+        onAccountSelected: (info) => {
+          selected.push({ index: info.index, email: info.email });
+        },
+      });
+
+      const loader = await plugin.auth.loader(
+        async () => ({ type: "api", key: "secret" }),
+        {
+          id: "google",
+          api: "https://generativelanguage.googleapis.com/v1beta",
+          npm: "@ai-sdk/google",
+          models: {},
+        },
+      );
+
+      try {
+        await (loader as { fetch: typeof fetch }).fetch(
+          "https://generativelanguage.googleapis.com/v1beta/models/antigravity-gemini-3.1-pro:generateContent",
+          { method: "POST", body: "{}" },
+        );
+      } catch {
+        // The invalid_grant response is expected to end the retry loop.
+      }
+
+      expect(selected.length).toBeGreaterThan(0);
+      expect(selected.map((entry) => entry.email)).toContain("one@example.com");
+      expect(
+        selected.every(
+          (entry) => entry.email === "one@example.com" || entry.email === "two@example.com",
+        ),
+      ).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("keeps API-key-only behavior when disk has no OAuth accounts", async () => {
     // No accounts on disk — must NOT promote, must short-circuit Antigravity-only
     // models with the synthetic 404 guidance.

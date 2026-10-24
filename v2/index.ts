@@ -5,8 +5,12 @@ import { createAntigravityPlugin } from "../src/plugin";
 import type { OpencodeModelDefinition } from "../src/plugin/config/models";
 import { startOAuthListener, type OAuthListener } from "../src/plugin/server";
 import { refreshAccessToken } from "../src/plugin/token";
-import type { AuthDetails, OAuthAuthDetails } from "../src/plugin/types";
-import { activateCredentialOnDisk, syncCredentialToDisk } from "./accounts.js";
+import type { AccountSelectionInfo, AuthDetails, OAuthAuthDetails } from "../src/plugin/types";
+import {
+  activateCredentialOnDisk,
+  findCredentialIDForEmail,
+  syncCredentialToDisk,
+} from "./accounts.js";
 import { v2ModelDefinitions } from "./models.js";
 
 const OAUTH_METHOD_ID = "oauth";
@@ -66,14 +70,6 @@ function toCredential(auth: OAuthAuthDetails): Credential.OAuth {
   };
 }
 
-function credentialKey(connection: any, credential: Credential.Value): string {
-  if (connection?.type === "credential" && typeof connection.id === "string") return connection.id;
-  if (connection?.type === "env" && typeof connection.name === "string") return `env:${connection.name}`;
-  if (credential.type === "key") return `key:${credential.key.slice(0, 16)}`;
-  if (credential.type === "oauth") return `oauth:${credential.refresh.slice(0, 16)}`;
-  return "external";
-}
-
 function callbackParams(value: string, fallbackState: string): { code: string; state: string } | { error: string } {
   const trimmed = value.trim();
   if (!trimmed) return { error: "Missing authorization code" };
@@ -123,13 +119,6 @@ export default Plugin.define({
         prompt: async () => ({}),
       },
     };
-    const v1 = await createAntigravityPlugin(ANTIGRAVITY_PROVIDER_ID)({
-      client: fakeClient as any,
-      directory: ctx.location.directory,
-    });
-    const loader = v1.auth.loader as any;
-    const loaderCache = new Map<string, Promise<typeof fetch>>();
-
     const active = async (): Promise<{ connection: any; credential: Credential.Value } | undefined> => {
       try {
         const connection = await ctx.integration.connection.active(integrationID);
@@ -141,13 +130,76 @@ export default Plugin.define({
       }
     };
 
+    const antigravityConnections = async (): Promise<Array<{ type: string; id: string; label: string }>> => {
+      try {
+        const result = await ctx.integration.list();
+        const integration = result.data.find((candidate) => candidate.id === integrationID);
+        return (integration?.connections ?? []) as Array<{ type: string; id: string; label: string }>;
+      } catch {
+        return [];
+      }
+    };
+
+    const credentialIDForEmail = async (email?: string): Promise<string | undefined> => {
+      if (!email) return undefined;
+      return findCredentialIDForEmail(await antigravityConnections(), email);
+    };
+
+    let loaderPromise: Promise<typeof fetch> | undefined;
+    const resetLoader = () => {
+      loaderPromise = undefined;
+    };
+
+    const internalActivations = new Set<string>();
+    let lastActiveCredentialID: string | undefined;
+    let disposed = false;
+    let followQueue: Promise<void> = Promise.resolve();
+
+    const markInternalActivation = (credentialID: string) => {
+      internalActivations.add(credentialID);
+      const timer = setTimeout(() => internalActivations.delete(credentialID), 10_000);
+      (timer as unknown as { unref?: () => void }).unref?.();
+    };
+
+    const activateCredentialForSelection = async (selection: AccountSelectionInfo) => {
+      if (disposed) return;
+      const credentialID = await credentialIDForEmail(selection.email);
+      if (!credentialID || credentialID === lastActiveCredentialID) return;
+
+      lastActiveCredentialID = credentialID;
+      markInternalActivation(credentialID);
+      try {
+        await ctx.credential.activate({ credentialID: credentialID as Credential.ID });
+      } catch {
+        internalActivations.delete(credentialID);
+        if (lastActiveCredentialID === credentialID) lastActiveCredentialID = undefined;
+      }
+    };
+
+    const followSelection = (selection: AccountSelectionInfo) => {
+      if (disposed) return;
+      followQueue = followQueue
+        .then(() => activateCredentialForSelection(selection))
+        .catch(() => {
+          // Rotation mirroring is best-effort.
+        });
+    };
+
+    const v1 = await createAntigravityPlugin(ANTIGRAVITY_PROVIDER_ID)({
+      client: fakeClient as any,
+      directory: ctx.location.directory,
+      onAccountSelected: followSelection,
+    });
+    const loader = v1.auth.loader as any;
+
     const loaderFetch = async (): Promise<typeof fetch> => {
-      const current = await active();
-      if (!current) throw new Error("No Antigravity login found; run /connect and choose Antigravity");
-      const key = credentialKey(current.connection, current.credential);
-      let pending = loaderCache.get(key);
-      if (!pending) {
-        pending = (async () => {
+      if (!loaderPromise) {
+        // Assign before the first await so concurrent title/prompt requests
+        // share one AccountManager instead of racing to create separate pools.
+        const pending = (async () => {
+          const initial = await active();
+          if (!initial) throw new Error("No Antigravity login found; run /connect and choose Antigravity");
+
           const getAuth = async () => {
             const latest = await active();
             return latest ? toV1Auth(latest.credential) : { type: "api", key: "" };
@@ -158,10 +210,13 @@ export default Plugin.define({
           }
           return result.fetch as typeof fetch;
         })();
-        loaderCache.set(key, pending);
-        pending.catch(() => loaderCache.delete(key));
+
+        loaderPromise = pending;
+        pending.catch(() => {
+          if (loaderPromise === pending) loaderPromise = undefined;
+        });
       }
-      return pending;
+      return loaderPromise as Promise<typeof fetch>;
     };
 
     const providerFetch: typeof fetch = async (input, init) => {
@@ -266,9 +321,18 @@ export default Plugin.define({
           if (value.type !== "credential.updated" && value.type !== "credential.switched") continue;
           const data = value.data ?? value.properties ?? {};
           if (data.integrationID !== "antigravity") continue;
-          loaderCache.clear();
+
+          const eventCredentialID =
+            typeof data.credentialID === "string" ? data.credentialID : undefined;
+          if (value.type === "credential.switched" && eventCredentialID && internalActivations.has(eventCredentialID)) {
+            internalActivations.delete(eventCredentialID);
+            continue;
+          }
+
+          resetLoader();
           const current = await active();
           if (!current) continue;
+          if (typeof current.connection?.id === "string") lastActiveCredentialID = current.connection.id;
           const label = typeof current.connection?.label === "string" ? current.connection.label : undefined;
           if (value.type === "credential.switched") {
             await activateCredentialOnDisk(current.credential, label);
@@ -325,20 +389,35 @@ export default Plugin.define({
       });
     }
 
-    void (async () => {
+    await (async () => {
       try {
+        for (const connection of await antigravityConnections()) {
+          if (connection.type !== "credential") continue;
+          try {
+            const credential = await ctx.integration.connection.resolve(connection as any);
+            if (credential) await syncCredentialToDisk(credential, connection.label);
+          } catch {
+            // One unreadable credential must not block the rest of the pool.
+          }
+        }
+
+        // The vault follows the rotation engine during a session. Reuse that
+        // selection on startup instead of resetting the disk cursor to the
+        // user's original credential.
         const current = await active();
         if (!current) return;
         const label = typeof current.connection?.label === "string" ? current.connection.label : undefined;
         await activateCredentialOnDisk(current.credential, label);
+        if (typeof current.connection?.id === "string") lastActiveCredentialID = current.connection.id;
       } catch {
         // Account-pool sync is best-effort; requests still work through the V1 loader.
       }
     })();
 
     return () => {
+      disposed = true;
       credentialEvents.abort();
-      loaderCache.clear();
+      resetLoader();
     };
   },
 });

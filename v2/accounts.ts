@@ -95,3 +95,27 @@ export async function activateCredentialOnDisk(
   storage.activeIndexByFamily = { claude: index, gemini: index };
   await saveAccountsReplace(storage);
 }
+
+export interface CredentialConnection {
+  type: string;
+  id: string;
+  label: string;
+}
+
+/**
+ * Finds the V2 credential connection matching a disk account email. V2 OAuth
+ * credentials use the account email as their connection label.
+ */
+export function findCredentialIDForEmail(
+  connections: readonly CredentialConnection[],
+  email?: string,
+): string | undefined {
+  const normalized = email?.trim().toLowerCase();
+  if (!normalized) return undefined;
+
+  return connections.find(
+    (connection) =>
+      connection.type === "credential" &&
+      connection.label.trim().toLowerCase() === normalized,
+  )?.id;
+}

@@ -209,6 +209,8 @@ export interface AccountWithMetrics {
   healthScore: number;
   isRateLimited: boolean;
   isCoolingDown: boolean;
+  /** Normalized fraction of remaining quota (0.0 to 1.0) for the target model family, if available */
+  remainingQuotaFraction?: number;
 }
 
 /** Stickiness bonus added to current account's score to prevent unnecessary switching */
@@ -220,7 +222,7 @@ const SWITCH_THRESHOLD = 100;
 /**
  * Select account using hybrid strategy with stickiness:
  * 1. Filter available accounts (not rate-limited, not cooling down, healthy, has tokens)
- * 2. Calculate priority score: health (2x) + tokens (5x) + freshness (0.1x)
+ * 2. Calculate priority score: health (2x) + tokens (5x) + remaining quota (0-500) + freshness (0.1x)
  * 3. Apply stickiness bonus to current account
  * 4. Only switch if another account beats current by SWITCH_THRESHOLD
  * 
@@ -236,11 +238,26 @@ export function selectHybridAccount(
   currentAccountIndex: number | null = null,
   minHealthScore: number = 50,
 ): number | null {
+  // Support legacy signature: selectHybridAccount(accounts, tokenTracker, minHealthScore)
+  let effectiveCurrentIndex: number | null = null;
+  let effectiveMinHealth = 50;
+
+  if (typeof currentAccountIndex === "number") {
+    // If 3rd arg > 10, it was likely passed as minHealthScore in legacy calls
+    if (currentAccountIndex >= 10 && minHealthScore === 50) {
+      effectiveMinHealth = currentAccountIndex;
+      effectiveCurrentIndex = null;
+    } else {
+      effectiveCurrentIndex = currentAccountIndex;
+      effectiveMinHealth = minHealthScore;
+    }
+  }
+
   const candidates = accounts
     .filter(acc => 
       !acc.isRateLimited && 
       !acc.isCoolingDown && 
-      acc.healthScore >= minHealthScore &&
+      acc.healthScore >= effectiveMinHealth &&
       tokenTracker.hasTokens(acc.index)
     )
     .map(acc => ({
@@ -257,12 +274,12 @@ export function selectHybridAccount(
     .map(acc => {
       const baseScore = calculateHybridScore(acc, maxTokens);
       // Apply stickiness bonus to current account
-      const stickinessBonus = acc.index === currentAccountIndex ? STICKINESS_BONUS : 0;
+      const stickinessBonus = acc.index === effectiveCurrentIndex ? STICKINESS_BONUS : 0;
       return {
         index: acc.index,
         baseScore,
         score: baseScore + stickinessBonus,
-        isCurrent: acc.index === currentAccountIndex
+        isCurrent: acc.index === effectiveCurrentIndex
       };
     })
     .sort((a, b) => b.score - a.score);
@@ -296,9 +313,14 @@ function calculateHybridScore(
 ): number {
   const healthComponent = account.healthScore * 2; // 0-200
   const tokenComponent = (account.tokens / maxTokens) * 100 * 5; // 0-500
+  // Quota component: remaining real quota gives up to 500 points (default 100% / 500pts if unknown)
+  const quotaFraction = account.remainingQuotaFraction !== undefined
+    ? Math.max(0, Math.min(1, account.remainingQuotaFraction))
+    : 1.0;
+  const quotaComponent = quotaFraction * 500; // 0-500
   const secondsSinceUsed = (Date.now() - account.lastUsed) / 1000;
   const freshnessComponent = Math.min(secondsSinceUsed, 3600) * 0.1; // 0-360
-  return Math.max(0, healthComponent + tokenComponent + freshnessComponent);
+  return Math.max(0, healthComponent + tokenComponent + quotaComponent + freshnessComponent);
 }
 
 // ============================================================================

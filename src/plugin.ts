@@ -1661,7 +1661,7 @@ function sleep(ms: number, signal?: AbortSignal | null): Promise<void> {
  * Creates an Antigravity OAuth plugin for a specific provider ID.
  */
 export const createAntigravityPlugin = (providerId: string) => async (
-  { client, directory }: PluginContext,
+  { client, directory, onAccountSelected }: PluginContext,
 ): Promise<PluginResult> => {
   // Load configuration from files and environment variables
   const config = loadConfig(directory);
@@ -2391,6 +2391,24 @@ export const createAntigravityPlugin = (providerId: string) => async (
             }
 
             accountManager.requestSaveToDisk();
+
+            if (onAccountSelected) {
+              try {
+                void Promise.resolve(
+                  onAccountSelected({
+                    index: account.index,
+                    email: account.email,
+                    family,
+                    headerStyle: selectedHeaderStyle,
+                    model,
+                  }),
+                ).catch(() => {
+                  // Account observers are advisory; never fail the request.
+                });
+              } catch {
+                // Account observers are advisory; never fail the request.
+              }
+            }
 
             let authRecord = accountManager.toAuthDetails(account);
 

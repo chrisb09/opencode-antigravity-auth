@@ -38,9 +38,24 @@ export interface LoaderResult {
     fetch(input: RequestInfo, init?: RequestInit): Promise<Response>;
 }
 export type PluginClient = PluginInput["client"];
+export interface AccountSelectionInfo {
+    /** Index of the selected account in the disk account pool. */
+    index: number;
+    email?: string;
+    family: "claude" | "gemini";
+    headerStyle: string;
+    model?: string | null;
+}
 export interface PluginContext {
     client: PluginClient;
     directory: string;
+    /**
+     * Optional observer for the account selected by the rotation engine.
+     *
+     * The V2 entrypoint uses this to mirror the selected account into OpenCode's
+     * credential vault. It is advisory: failures must not affect the request.
+     */
+    onAccountSelected?: (info: AccountSelectionInfo) => void | Promise<void>;
 }
 export type AuthPrompt = {
     type: "text";

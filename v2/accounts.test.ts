@@ -2,7 +2,11 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { activateCredentialOnDisk, syncCredentialToDisk } from "./accounts";
+import {
+  activateCredentialOnDisk,
+  findCredentialIDForEmail,
+  syncCredentialToDisk,
+} from "./accounts";
 import type { AccountStorageV4 } from "../src/plugin/storage";
 
 let root: string;
@@ -134,5 +138,22 @@ describe("V2 credential to account-pool sync", () => {
     expect(storage.accounts).toHaveLength(1);
     expect(storage.activeIndex).toBe(0);
     expect(storage.accounts[0]?.email).toBe("new@example.com");
+  });
+});
+
+describe("V2 credential lookup", () => {
+  const connections = [
+    { type: "credential", id: "cred_one", label: "one@example.com" },
+    { type: "credential", id: "cred_two", label: "Two@Example.com" },
+    { type: "env", id: "env_one", label: "one@example.com" },
+  ];
+
+  it("matches credential connections by email case-insensitively", () => {
+    expect(findCredentialIDForEmail(connections, "two@example.com")).toBe("cred_two");
+  });
+
+  it("ignores non-credential connections and missing emails", () => {
+    expect(findCredentialIDForEmail(connections, "three@example.com")).toBeUndefined();
+    expect(findCredentialIDForEmail(connections, undefined)).toBeUndefined();
   });
 });

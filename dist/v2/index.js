@@ -4,7 +4,7 @@ import { ANTIGRAVITY_PROVIDER_ID } from "../src/constants";
 import { createAntigravityPlugin } from "../src/plugin";
 import { startOAuthListener } from "../src/plugin/server";
 import { refreshAccessToken } from "../src/plugin/token";
-import { activateCredentialOnDisk, syncCredentialToDisk } from "./accounts.js";
+import { activateCredentialOnDisk, findCredentialIDForEmail, syncCredentialToDisk, } from "./accounts.js";
 import { v2ModelDefinitions } from "./models.js";
 const OAUTH_METHOD_ID = "oauth";
 const integrationID = Integration.ID.make("antigravity");
@@ -60,17 +60,6 @@ function toCredential(auth) {
         expires: auth.expires ?? 0,
     };
 }
-function credentialKey(connection, credential) {
-    if (connection?.type === "credential" && typeof connection.id === "string")
-        return connection.id;
-    if (connection?.type === "env" && typeof connection.name === "string")
-        return `env:${connection.name}`;
-    if (credential.type === "key")
-        return `key:${credential.key.slice(0, 16)}`;
-    if (credential.type === "oauth")
-        return `oauth:${credential.refresh.slice(0, 16)}`;
-    return "external";
-}
 function callbackParams(value, fallbackState) {
     const trimmed = value.trim();
     if (!trimmed)
@@ -122,12 +111,6 @@ export default Plugin.define({
                 prompt: async () => ({}),
             },
         };
-        const v1 = await createAntigravityPlugin(ANTIGRAVITY_PROVIDER_ID)({
-            client: fakeClient,
-            directory: ctx.location.directory,
-        });
-        const loader = v1.auth.loader;
-        const loaderCache = new Map();
         const active = async () => {
             try {
                 const connection = await ctx.integration.connection.active(integrationID);
@@ -140,14 +123,74 @@ export default Plugin.define({
                 return undefined;
             }
         };
+        const antigravityConnections = async () => {
+            try {
+                const result = await ctx.integration.list();
+                const integration = result.data.find((candidate) => candidate.id === integrationID);
+                return (integration?.connections ?? []);
+            }
+            catch {
+                return [];
+            }
+        };
+        const credentialIDForEmail = async (email) => {
+            if (!email)
+                return undefined;
+            return findCredentialIDForEmail(await antigravityConnections(), email);
+        };
+        let loaderPromise;
+        const resetLoader = () => {
+            loaderPromise = undefined;
+        };
+        const internalActivations = new Set();
+        let lastActiveCredentialID;
+        let disposed = false;
+        let followQueue = Promise.resolve();
+        const markInternalActivation = (credentialID) => {
+            internalActivations.add(credentialID);
+            const timer = setTimeout(() => internalActivations.delete(credentialID), 10_000);
+            timer.unref?.();
+        };
+        const activateCredentialForSelection = async (selection) => {
+            if (disposed)
+                return;
+            const credentialID = await credentialIDForEmail(selection.email);
+            if (!credentialID || credentialID === lastActiveCredentialID)
+                return;
+            lastActiveCredentialID = credentialID;
+            markInternalActivation(credentialID);
+            try {
+                await ctx.credential.activate({ credentialID: credentialID });
+            }
+            catch {
+                internalActivations.delete(credentialID);
+                if (lastActiveCredentialID === credentialID)
+                    lastActiveCredentialID = undefined;
+            }
+        };
+        const followSelection = (selection) => {
+            if (disposed)
+                return;
+            followQueue = followQueue
+                .then(() => activateCredentialForSelection(selection))
+                .catch(() => {
+                // Rotation mirroring is best-effort.
+            });
+        };
+        const v1 = await createAntigravityPlugin(ANTIGRAVITY_PROVIDER_ID)({
+            client: fakeClient,
+            directory: ctx.location.directory,
+            onAccountSelected: followSelection,
+        });
+        const loader = v1.auth.loader;
         const loaderFetch = async () => {
-            const current = await active();
-            if (!current)
-                throw new Error("No Antigravity login found; run /connect and choose Antigravity");
-            const key = credentialKey(current.connection, current.credential);
-            let pending = loaderCache.get(key);
-            if (!pending) {
-                pending = (async () => {
+            if (!loaderPromise) {
+                // Assign before the first await so concurrent title/prompt requests
+                // share one AccountManager instead of racing to create separate pools.
+                const pending = (async () => {
+                    const initial = await active();
+                    if (!initial)
+                        throw new Error("No Antigravity login found; run /connect and choose Antigravity");
                     const getAuth = async () => {
                         const latest = await active();
                         return latest ? toV1Auth(latest.credential) : { type: "api", key: "" };
@@ -158,10 +201,13 @@ export default Plugin.define({
                     }
                     return result.fetch;
                 })();
-                loaderCache.set(key, pending);
-                pending.catch(() => loaderCache.delete(key));
+                loaderPromise = pending;
+                pending.catch(() => {
+                    if (loaderPromise === pending)
+                        loaderPromise = undefined;
+                });
             }
-            return pending;
+            return loaderPromise;
         };
         const providerFetch = async (input, init) => {
             const send = await loaderFetch();
@@ -263,10 +309,17 @@ export default Plugin.define({
                     const data = value.data ?? value.properties ?? {};
                     if (data.integrationID !== "antigravity")
                         continue;
-                    loaderCache.clear();
+                    const eventCredentialID = typeof data.credentialID === "string" ? data.credentialID : undefined;
+                    if (value.type === "credential.switched" && eventCredentialID && internalActivations.has(eventCredentialID)) {
+                        internalActivations.delete(eventCredentialID);
+                        continue;
+                    }
+                    resetLoader();
                     const current = await active();
                     if (!current)
                         continue;
+                    if (typeof current.connection?.id === "string")
+                        lastActiveCredentialID = current.connection.id;
                     const label = typeof current.connection?.label === "string" ? current.connection.label : undefined;
                     if (value.type === "credential.switched") {
                         await activateCredentialOnDisk(current.credential, label);
@@ -318,21 +371,39 @@ export default Plugin.define({
                 });
             });
         }
-        void (async () => {
+        await (async () => {
             try {
+                for (const connection of await antigravityConnections()) {
+                    if (connection.type !== "credential")
+                        continue;
+                    try {
+                        const credential = await ctx.integration.connection.resolve(connection);
+                        if (credential)
+                            await syncCredentialToDisk(credential, connection.label);
+                    }
+                    catch {
+                        // One unreadable credential must not block the rest of the pool.
+                    }
+                }
+                // The vault follows the rotation engine during a session. Reuse that
+                // selection on startup instead of resetting the disk cursor to the
+                // user's original credential.
                 const current = await active();
                 if (!current)
                     return;
                 const label = typeof current.connection?.label === "string" ? current.connection.label : undefined;
                 await activateCredentialOnDisk(current.credential, label);
+                if (typeof current.connection?.id === "string")
+                    lastActiveCredentialID = current.connection.id;
             }
             catch {
                 // Account-pool sync is best-effort; requests still work through the V1 loader.
             }
         })();
         return () => {
+            disposed = true;
             credentialEvents.abort();
-            loaderCache.clear();
+            resetLoader();
         };
     },
 });

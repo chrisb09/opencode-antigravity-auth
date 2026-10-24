@@ -82,11 +82,13 @@ export interface AccountWithMetrics {
     healthScore: number;
     isRateLimited: boolean;
     isCoolingDown: boolean;
+    /** Normalized fraction of remaining quota (0.0 to 1.0) for the target model family, if available */
+    remainingQuotaFraction?: number;
 }
 /**
  * Select account using hybrid strategy with stickiness:
  * 1. Filter available accounts (not rate-limited, not cooling down, healthy, has tokens)
- * 2. Calculate priority score: health (2x) + tokens (5x) + freshness (0.1x)
+ * 2. Calculate priority score: health (2x) + tokens (5x) + remaining quota (0-500) + freshness (0.1x)
  * 3. Apply stickiness bonus to current account
  * 4. Only switch if another account beats current by SWITCH_THRESHOLD
  *

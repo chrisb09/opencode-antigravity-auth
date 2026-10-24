@@ -506,4 +506,56 @@ describe("selectHybridAccount", () => {
       expect([0, 1, 2]).toContain(result);
     }
   });
+
+  it("prioritizes accounts with higher remaining quota fraction", () => {
+    const tokenTracker = new TokenBucketTracker();
+    const accounts: AccountWithMetrics[] = [
+      {
+        index: 0,
+        lastUsed: 1000,
+        healthScore: 70,
+        isRateLimited: false,
+        isCoolingDown: false,
+        remainingQuotaFraction: 0.2, // 20% quota left
+      },
+      {
+        index: 1,
+        lastUsed: 1000,
+        healthScore: 70,
+        isRateLimited: false,
+        isCoolingDown: false,
+        remainingQuotaFraction: 0.95, // 95% quota left
+      },
+    ];
+
+    const result = selectHybridAccount(accounts, tokenTracker);
+    expect(result).toBe(1);
+  });
+
+  it("maintains session stickiness when current account has acceptable quota", () => {
+    const tokenTracker = new TokenBucketTracker();
+    const accounts: AccountWithMetrics[] = [
+      {
+        index: 0,
+        lastUsed: 1000,
+        healthScore: 70,
+        isRateLimited: false,
+        isCoolingDown: false,
+        remainingQuotaFraction: 0.8,
+      },
+      {
+        index: 1,
+        lastUsed: 1000,
+        healthScore: 70,
+        isRateLimited: false,
+        isCoolingDown: false,
+        remainingQuotaFraction: 0.9,
+      },
+    ];
+
+    // Current account index is 0. Account 1 has slightly more quota (+50pts),
+    // but stickiness bonus (+150pts) and threshold (+100pts) keep session on account 0
+    const result = selectHybridAccount(accounts, tokenTracker, 0);
+    expect(result).toBe(0);
+  });
 });

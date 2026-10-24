@@ -648,11 +648,18 @@ export class AccountManager {
     if (strategy === 'hybrid') {
       const healthTracker = getHealthTracker();
       const tokenTracker = getTokenTracker();
+      const quotaGroup = resolveQuotaGroup(family, model);
       
       const accountsWithMetrics: AccountWithMetrics[] = this.accounts
         .filter(acc => acc.enabled !== false && !excludeIndices?.has(acc.index))
         .map(acc => {
           clearExpiredRateLimits(acc);
+          const cachedFraction = acc.cachedQuota?.[quotaGroup]?.remainingFraction;
+          const remainingQuotaFraction =
+            typeof cachedFraction === "number" && Number.isFinite(cachedFraction)
+              ? Math.max(0, Math.min(1, cachedFraction))
+              : undefined;
+
           return {
             index: acc.index,
             lastUsed: acc.lastUsed,
@@ -664,6 +671,7 @@ export class AccountManager {
             isRateLimited: isRateLimitedForHeaderStyle(acc, family, headerStyle, model) ||
                           isOverSoftQuotaThreshold(acc, family, headerStyle, softQuotaThresholdPercent, softQuotaCacheTtlMs, model),
             isCoolingDown: this.isAccountCoolingDown(acc),
+            remainingQuotaFraction,
           };
         });
 
