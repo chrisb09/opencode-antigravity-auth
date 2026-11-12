@@ -1,6 +1,6 @@
 import {
   ANTIGRAVITY_ENDPOINT_PROD,
-  getAntigravityHeaders,
+  ANTIGRAVITY_CLI_USER_AGENT,
   ANTIGRAVITY_PROVIDER_ID,
 } from "../constants";
 import { accessTokenExpired, formatRefreshParts, parseRefreshParts } from "./auth";
@@ -209,7 +209,9 @@ export async function fetchAvailableModels(
   projectId: string,
 ): Promise<FetchAvailableModelsResponse> {
   const endpoint = ANTIGRAVITY_ENDPOINT_PROD;
-  const quotaUserAgent = getAntigravityHeaders()["User-Agent"] || "antigravity/windows/amd64";
+  // agy 1.5.7 sends the CLI User-Agent (no X-Goog-Api-Client/Client-Metadata)
+  // on every cloudcode-pa call, including fetchAvailableModels.
+  const quotaUserAgent = ANTIGRAVITY_CLI_USER_AGENT;
   const errors: string[] = [];
 
   const body = projectId ? { project: projectId } : {};

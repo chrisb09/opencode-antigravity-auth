@@ -153,14 +153,13 @@ The V2 TUI adds:
 V2 exposes only current, verified models:
 
 - `antigravity/antigravity-gemini-3-flash`
-- `antigravity/antigravity-gemini-3.8-flash`
 - `antigravity/antigravity-claude-sonnet-4-6`
 - `antigravity/antigravity-claude-opus-4-6-thinking`
 - `antigravity/gemini-2.5-flash`
 - `antigravity/gemini-3-flash-preview`
 - `antigravity/gemini-3.8-flash`
 
-Older Gemini entries remain in the V1 catalog but are hidden from V2.
+Older Gemini entries (including the former `antigravity-gemini-3.8-flash` picker entry) remain resolvable as hidden aliases but are hidden from the catalog.
 
 ---
 
@@ -168,43 +167,28 @@ Older Gemini entries remain in the V1 catalog but are hidden from V2.
 
 ### Model Reference
 
-**Antigravity quota** (default routing for Claude and Gemini):
+**Default catalog** (verified against the Antigravity backend's `fetchAvailableModels` response, captured from agy 1.5.7):
 
-| Model | Variants | Notes |
-|-------|----------|-------|
-| `antigravity-gemini-3-pro` | low, high | Gemini 3 Pro with thinking |
-| `antigravity-gemini-3.1-pro` | low, high | Gemini 3.1 Pro with thinking (rollout-dependent) |
-| `antigravity-gemini-3-flash` | minimal, low, medium, high | Gemini 3 Flash with thinking |
-| `antigravity-gemini-3.5-flash` | minimal, low, medium, high | Gemini 3.5 Flash with thinking (rollout-dependent) |
-| `antigravity-gemini-3.6-flash` | low, medium, high | Gemini 3.6 Flash with thinking (medium default) |
-| `antigravity-gemini-3.7-flash` | low, medium, high | Gemini 3.7 Flash with thinking |
-| `antigravity-gemini-3.8-flash` | low, medium, high | Gemini 3.8 Flash with thinking |
-| `antigravity-claude-sonnet-4-6` | — | Claude Sonnet 4.6 |
-| `antigravity-claude-opus-4-6-thinking` | low, max | Claude Opus 4.6 with extended thinking |
+| Model | Variants | Context | Notes |
+|-------|----------|---------|-------|
+| `gemini-3.8-flash` | low, medium, high (medium default) | 1,048,576 | Canonical Gemini 3.8 Flash. Antigravity-first routing with Gemini CLI fallback; the Antigravity backend serves tier-suffixed ids (`gemini-3.8-flash-low/medium/high`) automatically. `gemini-flash-latest` aliases to this. |
+| `antigravity-gemini-3-flash` | minimal, low, medium, high | 1,048,576 | Gemini 3 Flash with thinking |
+| `antigravity-claude-sonnet-4-6` | — | 250,000 | Claude Sonnet 4.6 (backend reports 250k context) |
+| `antigravity-claude-opus-4-6-thinking` | low, max | 250,000 | Claude Opus 4.6 with extended thinking |
+| `gemini-2.5-flash` | — | 1,048,576 | Gemini 2.5 Flash (Gemini CLI quota; the backend maps it to Gemini 3.5 Flash-Lite) |
+| `gemini-3-flash-preview` | — | 1,048,576 | Gemini 3 Flash (preview, Gemini CLI quota) |
+
+> **Hidden aliases (still resolve, not in the picker):**
+> - `antigravity-gemini-3.8-flash` — pins the request to Antigravity quota (no CLI fallback)
+> - `gemini-3.8-flash-{minimal,low,medium,high}`, `gemini-flash-latest` → `gemini-3.8-flash`
+> - Older generations (`gemini-3.5-flash`, `gemini-3.5-flash-lite`, `gemini-3.6-flash`, `gemini-3.7-flash`, `antigravity-gemini-3.{5,6,7}-flash`, `gemini-2.5-pro`, `gemini-3-pro-preview`, `gemini-3.1-pro`, …) keep resolving for existing configs but are pruned from the default catalog.
 
 **Antigravity SDK / Gemini API projects** (API-key backed; used by API-key auth, or as OAuth fallback when configured):
 
 The official Antigravity SDK uses `GEMINI_API_KEY` for local Gemini access. This plugin now supports that path directly for Gemini models while keeping OAuth accounts for Antigravity and Claude.
 
-**Legacy Gemini CLI quota** (separate from Antigravity; used when `cli_first` is true or as fallback):
-
-| Model | Notes |
-|-------|-------|
-| `gemini-2.5-flash` | Gemini 2.5 Flash |
-| `gemini-2.5-pro` | Gemini 2.5 Pro |
-| `gemini-3-flash-preview` | Gemini 3 Flash (preview) |
-| `gemini-3.5-flash` | Gemini 3.5 Flash (rollout-dependent) |
-| `gemini-3.5-flash-lite` | Gemini 3.5 Flash-Lite (minimal default) |
-| `gemini-3.6-flash` | Gemini 3.6 Flash (medium default) |
-| `gemini-3.7-flash` | Gemini 3.7 Flash |
-| `gemini-3.8-flash` | Gemini 3.8 Flash |
-| `gemini-3-pro-preview` | Gemini 3 Pro (preview) |
-| `gemini-3.1-pro` | Gemini 3.1 Pro |
-| `gemini-3.1-pro-preview-customtools` | Gemini 3.1 Pro Preview Custom Tools |
-
 > **Routing Behavior:**
 > - **OAuth Antigravity-first (default):** Gemini models use Antigravity quota across OAuth accounts.
->   Gemini 3.5 Flash-Lite is public-only and uses the Gemini CLI/public path directly.
 > - **Antigravity SDK / Gemini API:** API-key auth, `GEMINI_API_KEY`, or configured `agy_sdk.cloud_projects` route Gemini requests through the public Gemini API.
 > - **Legacy CLI-first (`cli_first: true`):** Gemini models use the legacy Gemini CLI quota first.
 > - When OAuth quota pools are exhausted, configured `agy_sdk.cloud_projects` are used as backup capacity before failing if `agy_sdk.enabled: true`, `agy_sdk.api_key_fallback: true`, and usable API-key credentials are present.
@@ -230,24 +214,6 @@ Add this to your `~/.config/opencode/opencode.json`:
   "provider": {
     "google": {
       "models": {
-        "antigravity-gemini-3-pro": {
-          "name": "Gemini 3 Pro (Antigravity)",
-          "limit": { "context": 1048576, "output": 65535 },
-          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
-          "variants": {
-            "low": { "thinkingLevel": "low" },
-            "high": { "thinkingLevel": "high" }
-          }
-        },
-        "antigravity-gemini-3.1-pro": {
-          "name": "Gemini 3.1 Pro (Antigravity)",
-          "limit": { "context": 1048576, "output": 65535 },
-          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
-          "variants": {
-            "low": { "thinkingLevel": "low" },
-            "high": { "thinkingLevel": "high" }
-          }
-        },
         "antigravity-gemini-3-flash": {
           "name": "Gemini 3 Flash (Antigravity)",
           "limit": { "context": 1048576, "output": 65536 },
@@ -259,39 +225,8 @@ Add this to your `~/.config/opencode/opencode.json`:
             "high": { "thinkingLevel": "high" }
           }
         },
-        "antigravity-gemini-3.5-flash": {
-          "name": "Gemini 3.5 Flash (Antigravity)",
-          "limit": { "context": 1048576, "output": 65536 },
-          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
-          "variants": {
-            "minimal": { "thinkingLevel": "minimal" },
-            "low": { "thinkingLevel": "low" },
-            "medium": { "thinkingLevel": "medium" },
-            "high": { "thinkingLevel": "high" }
-          }
-        },
-        "antigravity-gemini-3.6-flash": {
-          "name": "Gemini 3.6 Flash (Antigravity)",
-          "limit": { "context": 1048576, "output": 65536 },
-          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
-          "variants": {
-            "low": { "thinkingLevel": "low" },
-            "medium": { "thinkingLevel": "medium" },
-            "high": { "thinkingLevel": "high" }
-          }
-        },
-        "antigravity-gemini-3.7-flash": {
-          "name": "Gemini 3.7 Flash (Antigravity)",
-          "limit": { "context": 1048576, "output": 65536 },
-          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
-          "variants": {
-            "low": { "thinkingLevel": "low" },
-            "medium": { "thinkingLevel": "medium" },
-            "high": { "thinkingLevel": "high" }
-          }
-        },
-        "antigravity-gemini-3.8-flash": {
-          "name": "Gemini 3.8 Flash (Antigravity)",
+        "gemini-3.8-flash": {
+          "name": "Gemini 3.8 Flash",
           "limit": { "context": 1048576, "output": 65536 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
           "variants": {
@@ -302,12 +237,12 @@ Add this to your `~/.config/opencode/opencode.json`:
         },
         "antigravity-claude-sonnet-4-6": {
           "name": "Claude Sonnet 4.6 (Antigravity)",
-          "limit": { "context": 200000, "output": 64000 },
+          "limit": { "context": 250000, "output": 64000 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
         },
         "antigravity-claude-opus-4-6-thinking": {
           "name": "Claude Opus 4.6 Thinking (Antigravity)",
-          "limit": { "context": 200000, "output": 64000 },
+          "limit": { "context": 250000, "output": 64000 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
           "variants": {
             "low": { "thinkingConfig": { "thinkingBudget": 8192 } },
@@ -319,76 +254,9 @@ Add this to your `~/.config/opencode/opencode.json`:
           "limit": { "context": 1048576, "output": 65536 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
         },
-        "gemini-2.5-pro": {
-          "name": "Gemini 2.5 Pro (Gemini CLI)",
-          "limit": { "context": 1048576, "output": 65536 },
-          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
-        },
         "gemini-3-flash-preview": {
           "name": "Gemini 3 Flash Preview (Gemini CLI)",
           "limit": { "context": 1048576, "output": 65536 },
-          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
-        },
-        "gemini-3.5-flash": {
-          "name": "Gemini 3.5 Flash (Gemini CLI)",
-          "limit": { "context": 1048576, "output": 65536 },
-          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
-        },
-        "gemini-3.5-flash-lite": {
-          "name": "Gemini 3.5 Flash-Lite (Gemini CLI)",
-          "limit": { "context": 1048576, "output": 65536 },
-          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
-          "variants": {
-            "minimal": { "thinkingLevel": "minimal" },
-            "low": { "thinkingLevel": "low" },
-            "medium": { "thinkingLevel": "medium" },
-            "high": { "thinkingLevel": "high" }
-          }
-        },
-        "gemini-3.6-flash": {
-          "name": "Gemini 3.6 Flash (Gemini CLI)",
-          "limit": { "context": 1048576, "output": 65536 },
-          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
-          "variants": {
-            "medium": { "thinkingLevel": "medium" },
-            "high": { "thinkingLevel": "high" }
-          }
-        },
-        "gemini-3.7-flash": {
-          "name": "Gemini 3.7 Flash (Gemini CLI)",
-          "limit": { "context": 1048576, "output": 65536 },
-          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
-          "variants": {
-            "minimal": { "thinkingLevel": "minimal" },
-            "low": { "thinkingLevel": "low" },
-            "medium": { "thinkingLevel": "medium" },
-            "high": { "thinkingLevel": "high" }
-          }
-        },
-        "gemini-3.8-flash": {
-          "name": "Gemini 3.8 Flash (Gemini CLI)",
-          "limit": { "context": 1048576, "output": 65536 },
-          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
-          "variants": {
-            "minimal": { "thinkingLevel": "minimal" },
-            "low": { "thinkingLevel": "low" },
-            "medium": { "thinkingLevel": "medium" },
-            "high": { "thinkingLevel": "high" }
-          }
-        },
-        "gemini-3-pro-preview": {
-          "name": "Gemini 3 Pro Preview (Gemini CLI)",
-          "limit": { "context": 1048576, "output": 65535 },
-          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
-        },
-        "gemini-3.1-pro": {
-          "name": "Gemini 3.1 Pro (Gemini CLI)",
-          "limit": { "context": 1048576, "output": 65535 },
-          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
-        },
-        "gemini-3.1-pro-preview-customtools": {
-          "name": "Gemini 3.1 Pro Preview Custom Tools (Gemini CLI)",
-          "limit": { "context": 1048576, "output": 65535 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] }
         }
       }

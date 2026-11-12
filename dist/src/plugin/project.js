@@ -194,7 +194,9 @@ export async function ensureProjectContext(auth) {
         }
         // No managed project found - try to auto-provision one via onboarding.
         // This handles accounts that were added before managed project provisioning was required.
-        const tierId = getDefaultTierId(loadPayload?.allowedTiers) ?? "FREE";
+        // Fallback tier id "free-tier" matches what the backend reports for consumer
+        // accounts (loadCodeAssist currentTier.id, captured from agy 1.5.7).
+        const tierId = getDefaultTierId(loadPayload?.allowedTiers) ?? "free-tier";
         log.debug("Auto-provisioning managed project", { tierId, projectId: parts.projectId });
         const provisionedProjectId = await onboardManagedProject(accessToken, tierId, parts.projectId);
         if (provisionedProjectId) {

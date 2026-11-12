@@ -206,6 +206,7 @@ export function resolveAntigravityGemini37FlashBackendModel(model, thinkingLevel
 /**
  * AGY exposes Gemini 3.8 Flash only through tier-specific backend ids.
  * Minimal is retained as a compatibility alias for low, but is not advertised.
+ * Medium is the default tier, matching agy 1.5.7's shipped default.
  */
 export function resolveAntigravityGemini38FlashBackendModel(model, thinkingLevel) {
     const modelWithoutQuota = model.replace(QUOTA_PREFIX_REGEX, "");
@@ -213,7 +214,7 @@ export function resolveAntigravityGemini38FlashBackendModel(model, thinkingLevel
     if (!match) {
         return undefined;
     }
-    const requestedLevel = (thinkingLevel ?? match[1] ?? "low").toLowerCase();
+    const requestedLevel = (thinkingLevel ?? match[1] ?? "medium").toLowerCase();
     const level = requestedLevel === "minimal" ? "low" : requestedLevel;
     if (level !== "low" && level !== "medium" && level !== "high") {
         return undefined;
@@ -227,6 +228,11 @@ export function getDefaultGemini3ThinkingLevel(model) {
     }
     if (/^gemini-3\.5-flash-lite(?:-|$)/.test(normalized)) {
         return "minimal";
+    }
+    // agy 1.5.7 defaults Gemini 3.8 Flash to Medium (its settings ship
+    // "Gemini 3.8 Flash (Medium)"); the backend only serves low/medium/high.
+    if (/^gemini-3\.8-flash(?:-|$)/.test(normalized)) {
+        return "medium";
     }
     return "low";
 }
@@ -292,6 +298,10 @@ export function resolveModelWithTier(requestedModel, options = {}) {
             antigravityModel = gemini38FlashBackendModel;
             if (String(effectiveTier) === "minimal") {
                 effectiveTier = "low";
+            }
+            else if (!effectiveTier) {
+                // agy 1.5.7 defaults Gemini 3.8 Flash to the medium tier.
+                effectiveTier = "medium";
             }
         }
         else if (gemini37FlashBackendModel) {

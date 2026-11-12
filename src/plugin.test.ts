@@ -122,30 +122,24 @@ describe("createAntigravityPlugin provider models", () => {
         input: { text: true, image: true, pdf: true },
         output: { text: true },
       });
-      expect(models?.["antigravity-gemini-3-pro"]).toMatchObject({
-        id: "antigravity-gemini-3-pro",
+      expect(models?.["antigravity-gemini-3-flash"]).toMatchObject({
+        id: "antigravity-gemini-3-flash",
         providerID: "google",
-        api: { id: "antigravity-gemini-3-pro" },
+        api: { id: "antigravity-gemini-3-flash" },
       });
-      expect(models?.["antigravity-gemini-3.6-flash"]?.capabilities).toMatchObject({
-        temperature: false,
-        reasoning: true,
-      });
-      expect(models?.["antigravity-gemini-3.7-flash"]?.capabilities).toMatchObject({
-        reasoning: true,
-      });
-      expect(models?.["gemini-3.7-flash"]?.capabilities).toMatchObject({
-        reasoning: true,
-      });
-      expect(models?.["antigravity-gemini-3.8-flash"]?.capabilities).toMatchObject({
-        reasoning: true,
-      });
+      expect(models?.["antigravity-gemini-3.8-flash"]).toBeUndefined();
+      expect(models?.["antigravity-gemini-3.6-flash"]).toBeUndefined();
+      expect(models?.["gemini-3.7-flash"]).toBeUndefined();
       expect(models?.["gemini-3.8-flash"]?.capabilities).toMatchObject({
         reasoning: true,
       });
-      expect(models?.["gemini-3.5-flash-lite"]?.capabilities).toMatchObject({
-        temperature: false,
-        reasoning: true,
+      expect(models?.["gemini-3.8-flash"]?.limit).toEqual({
+        context: 1048576,
+        output: 65536,
+      });
+      expect(models?.["antigravity-claude-sonnet-4-6"]?.limit).toEqual({
+        context: 250000,
+        output: 64000,
       });
     } finally {
       vi.unstubAllGlobals();

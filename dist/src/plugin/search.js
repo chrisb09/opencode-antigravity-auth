@@ -5,7 +5,7 @@
  * cannot be combined with function declarations. This module implements a
  * wrapper that makes separate API calls with only the grounding tools enabled.
  */
-import { ANTIGRAVITY_ENDPOINT, getAntigravityHeaders, SEARCH_MODEL, SEARCH_TIMEOUT_MS, SEARCH_SYSTEM_INSTRUCTION, } from "../constants";
+import { ANTIGRAVITY_ENDPOINT, ANTIGRAVITY_CLI_USER_AGENT, SEARCH_MODEL, SEARCH_TIMEOUT_MS, SEARCH_SYSTEM_INSTRUCTION, } from "../constants";
 import { createLogger } from "./logger";
 const log = createLogger("search");
 // ============================================================================
@@ -167,7 +167,9 @@ export async function executeSearch(args, accessToken, projectId, abortSignal) {
         const response = await fetch(url, {
             method: "POST",
             headers: {
-                ...getAntigravityHeaders(),
+                // agy 1.5.7 sends only the CLI User-Agent (plus auth/content-type)
+                // on generateContent; IDE-style headers are not used.
+                "User-Agent": ANTIGRAVITY_CLI_USER_AGENT,
                 Authorization: `Bearer ${accessToken}`,
                 "Content-Type": "application/json",
             },

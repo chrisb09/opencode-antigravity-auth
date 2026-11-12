@@ -1,7 +1,7 @@
 import { exec } from "node:child_process";
 import { consumeRoutingPin, pinnedConfig, pinnedExclusions } from "./plugin/routing-pin";
 import { tool } from "@opencode-ai/plugin";
-import { ANTIGRAVITY_DEFAULT_PROJECT_ID, ANTIGRAVITY_ENDPOINT, ANTIGRAVITY_ENDPOINT_FALLBACKS, ANTIGRAVITY_ENDPOINT_PROD, ANTIGRAVITY_PROVIDER_ID, getAntigravityHeaders, } from "./constants";
+import { ANTIGRAVITY_DEFAULT_PROJECT_ID, ANTIGRAVITY_ENDPOINT, ANTIGRAVITY_ENDPOINT_FALLBACKS, ANTIGRAVITY_ENDPOINT_PROD, ANTIGRAVITY_CLI_USER_AGENT, ANTIGRAVITY_PROVIDER_ID, } from "./constants";
 import { authorizeAntigravity, exchangeAntigravity } from "./antigravity/oauth";
 import { accessTokenExpired, isOAuthAuth, parseRefreshParts, formatRefreshParts } from "./plugin/auth";
 import { pressEnterToContinue, promptAddAnotherAccount, promptLoginMode, promptProjectId } from "./plugin/cli";
@@ -622,7 +622,9 @@ async function verifyAccountAccess(account, client, providerId) {
         account.projectId ??
         ANTIGRAVITY_DEFAULT_PROJECT_ID;
     const headers = {
-        ...getAntigravityHeaders(),
+        // agy 1.5.7 sends only the CLI User-Agent (plus auth/content-type)
+        // on generateContent; IDE-style headers are not used.
+        "User-Agent": ANTIGRAVITY_CLI_USER_AGENT,
         Authorization: `Bearer ${refreshedAuth.access}`,
         "Content-Type": "application/json",
     };

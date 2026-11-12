@@ -7,7 +7,7 @@ import {
 } from "./constants.ts"
 
 it("uses AGY's consumer fallback project", () => {
-  expect(ANTIGRAVITY_DEFAULT_PROJECT_ID).toBe("default-cli-project")
+  expect(ANTIGRAVITY_DEFAULT_PROJECT_ID).toBe("aicode-consumers")
 })
 
 describe("GEMINI_CLI_HEADERS", () => {

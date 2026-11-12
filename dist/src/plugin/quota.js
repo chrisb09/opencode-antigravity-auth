@@ -1,4 +1,4 @@
-import { ANTIGRAVITY_ENDPOINT_PROD, getAntigravityHeaders, ANTIGRAVITY_PROVIDER_ID, } from "../constants";
+import { ANTIGRAVITY_ENDPOINT_PROD, ANTIGRAVITY_CLI_USER_AGENT, ANTIGRAVITY_PROVIDER_ID, } from "../constants";
 import { accessTokenExpired, formatRefreshParts, parseRefreshParts } from "./auth";
 import { logQuotaFetch, logQuotaStatus } from "./debug";
 import { ensureProjectContext } from "./project";
@@ -122,7 +122,9 @@ async function fetchWithTimeout(url, options, timeoutMs = FETCH_TIMEOUT_MS) {
 }
 export async function fetchAvailableModels(accessToken, projectId) {
     const endpoint = ANTIGRAVITY_ENDPOINT_PROD;
-    const quotaUserAgent = getAntigravityHeaders()["User-Agent"] || "antigravity/windows/amd64";
+    // agy 1.5.7 sends the CLI User-Agent (no X-Goog-Api-Client/Client-Metadata)
+    // on every cloudcode-pa call, including fetchAvailableModels.
+    const quotaUserAgent = ANTIGRAVITY_CLI_USER_AGENT;
     const errors = [];
     const body = projectId ? { project: projectId } : {};
     const response = await fetchWithTimeout(`${endpoint}/v1internal:fetchAvailableModels`, {

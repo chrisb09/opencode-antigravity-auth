@@ -67,6 +67,7 @@ export declare function resolveAntigravityGemini37FlashBackendModel(model: strin
 /**
  * AGY exposes Gemini 3.8 Flash only through tier-specific backend ids.
  * Minimal is retained as a compatibility alias for low, but is not advertised.
+ * Medium is the default tier, matching agy 1.5.7's shipped default.
  */
 export declare function resolveAntigravityGemini38FlashBackendModel(model: string, thinkingLevel?: string): string | undefined;
 export declare function getDefaultGemini3ThinkingLevel(model: string): string;

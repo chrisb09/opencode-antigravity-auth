@@ -8,6 +8,7 @@ import {
   SKIP_THOUGHT_SIGNATURE,
   MIN_SIGNATURE_LENGTH,
   ANTIGRAVITY_CLI_USER_AGENT,
+  ANTIGRAVITY_DEFAULT_PROJECT_ID,
   getRandomizedHeaders,
   type HeaderStyle,
 } from "../constants";
@@ -90,6 +91,13 @@ import type { GoogleSearchConfig } from "./transform/types";
 const log = createLogger("request");
 
 const PLUGIN_SESSION_ID = `-${crypto.randomUUID()}`;
+
+// Cascade/trajectory identity for Antigravity request labels, mirroring agy.
+// agy keeps one cascade id per conversation and one trajectory id per turn
+// sequence; the plugin keeps them stable per plugin instance (session-scoped).
+const ANTIGRAVITY_CASCADE_ID = crypto.randomUUID();
+const ANTIGRAVITY_TRAJECTORY_ID = crypto.randomUUID();
+let antigravityRequestStep = 0;
 
 // Per-session dedup of streamed thinking text (Gemini-3). Keyed by sessionId so
 // identical thinking text in DIFFERENT sessions is NOT cross-suppressed, and so
@@ -1003,15 +1011,6 @@ export function getPluginSessionId(): string {
   return PLUGIN_SESSION_ID;
 }
 
-function generateSyntheticProjectId(): string {
-  const adjectives = ["useful", "bright", "swift", "calm", "bold"];
-  const nouns = ["fuze", "wave", "spark", "flow", "core"];
-  const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
-  const noun = nouns[Math.floor(Math.random() * nouns.length)];
-  const randomPart = crypto.randomUUID().slice(0, 5).toLowerCase();
-  return `${adj}-${noun}-${randomPart}`;
-}
-
 function ensureDefaultGemini3ThinkingLevel(
   requestPayload: Record<string, unknown>,
   effectiveModel: string,
@@ -1415,7 +1414,9 @@ export function prepareAntigravityRequest(
           ensureDefaultGemini3ThinkingLevel(
             req as Record<string, unknown>,
             effectiveModel,
-            tierThinkingLevel,
+            headerStyle === "antigravity" && tierThinkingLevel
+              ? tierThinkingLevel.toUpperCase()
+              : tierThinkingLevel,
           );
 
           if (isClaude) {
@@ -1667,10 +1668,15 @@ export function prepareAntigravityRequest(
                   : {}),
               };
             } else if (tierThinkingLevel) {
-              // Gemini 3 uses thinkingLevel string (low/medium/high)
+              // Gemini 3 uses thinkingLevel string (low/medium/high).
+              // agy 1.5.7 sends UPPERCASE levels to the Antigravity backend
+              // (e.g. "MEDIUM"); the public Gemini API path keeps lowercase.
               thinkingConfig = {
                 includeThoughts: normalizedThinking.includeThoughts,
-                thinkingLevel: tierThinkingLevel,
+                thinkingLevel:
+                  headerStyle === "antigravity"
+                    ? tierThinkingLevel.toUpperCase()
+                    : tierThinkingLevel,
               };
             } else {
               // Gemini 2.5 and others use numeric budget
@@ -1978,7 +1984,10 @@ export function prepareAntigravityRequest(
               model: effectiveModel,
               normalizedThinking: undefined, // Thinking config already applied above (lines 816-880)
               tierThinkingBudget,
-              tierThinkingLevel: tierThinkingLevel as ThinkingTier | undefined,
+              tierThinkingLevel:
+                (headerStyle === "antigravity" && tierThinkingLevel
+                  ? tierThinkingLevel.toUpperCase()
+                  : tierThinkingLevel) as ThinkingTier | undefined,
             });
 
             toolDebugMissing = geminiResult.toolDebugMissing;
@@ -2214,7 +2223,7 @@ export function prepareAntigravityRequest(
 
         const effectiveProjectId =
           projectId?.trim() ||
-          (headerStyle === "antigravity" ? generateSyntheticProjectId() : "");
+          (headerStyle === "antigravity" ? ANTIGRAVITY_DEFAULT_PROJECT_ID : "");
         resolvedProjectId = effectiveProjectId;
 
         // Inject Antigravity system instruction with role "user" (CLIProxyAPI v6.6.89 compatibility)
@@ -2270,12 +2279,31 @@ export function prepareAntigravityRequest(
         if (headerStyle === "antigravity") {
           wrappedBody.requestType = "agent";
           wrappedBody.userAgent = "antigravity";
-          wrappedBody.requestId = "agent-" + crypto.randomUUID();
+          // agy requestId format: agent/<cascade-uuid>/<epoch-ms>/<trajectory-uuid>/<turn>
+          wrappedBody.requestId = `agent/${ANTIGRAVITY_CASCADE_ID}/${Date.now()}/${ANTIGRAVITY_TRAJECTORY_ID}/${antigravityRequestStep + 1}`;
         }
         if (wrappedBody.request && typeof wrappedBody.request === "object") {
           // Use stable session ID for signature caching across multi-turn conversations
           sessionId = signatureSessionKey;
           (wrappedBody.request as any).sessionId = signatureSessionKey;
+          if (headerStyle === "antigravity") {
+            // Cascade/trajectory telemetry labels, mirroring agy 1.5.7.
+            // `model_enum` is omitted: agy fills it with an internal proto enum
+            // name that cannot be derived faithfully for every model.
+            const wrappedRequest = wrappedBody.request as any;
+            const isClaudeModelId = typeof effectiveModel === "string" && effectiveModel.toLowerCase().includes("claude");
+            wrappedRequest.labels = {
+              cascade_id: ANTIGRAVITY_CASCADE_ID,
+              root_cascade_id: ANTIGRAVITY_CASCADE_ID,
+              trajectory_id: ANTIGRAVITY_TRAJECTORY_ID,
+              request_id: `${ANTIGRAVITY_TRAJECTORY_ID}-${antigravityRequestStep}`,
+              last_step_index: String(antigravityRequestStep),
+              used_claude: isClaudeModelId ? "true" : "false",
+              used_claude_conservative: "false",
+              used_non_gemini_model: isClaudeModelId ? "true" : "false",
+            };
+            antigravityRequestStep += 1;
+          }
         }
 
         body = JSON.stringify(wrappedBody);
@@ -2695,7 +2723,6 @@ export const __testExports = {
   ensureThinkingBeforeToolUseInMessages,
   sanitizeRequestPayloadForAntigravity,
   signatureCacheProjectKey,
-  generateSyntheticProjectId,
   getDisplayedThinkingHashes,
   MIN_SIGNATURE_LENGTH,
   transformSseLine,

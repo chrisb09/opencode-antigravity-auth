@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { ANTIGRAVITY_ENDPOINT, GEMINI_CLI_ENDPOINT, GEMINI_CLI_HEADERS, EMPTY_SCHEMA_PLACEHOLDER_NAME, EMPTY_SCHEMA_PLACEHOLDER_DESCRIPTION, SKIP_THOUGHT_SIGNATURE, MIN_SIGNATURE_LENGTH, ANTIGRAVITY_CLI_USER_AGENT, getRandomizedHeaders, } from "../constants";
+import { ANTIGRAVITY_ENDPOINT, GEMINI_CLI_ENDPOINT, GEMINI_CLI_HEADERS, EMPTY_SCHEMA_PLACEHOLDER_NAME, EMPTY_SCHEMA_PLACEHOLDER_DESCRIPTION, SKIP_THOUGHT_SIGNATURE, MIN_SIGNATURE_LENGTH, ANTIGRAVITY_CLI_USER_AGENT, ANTIGRAVITY_DEFAULT_PROJECT_ID, getRandomizedHeaders, } from "../constants";
 import { cacheSignature, getCachedSignature } from "./cache";
 import { getKeepThinking } from "./config";
 import { createStreamingTransformer, transformSseLine, transformStreamingPayload, } from "./core/streaming";
@@ -16,6 +16,12 @@ import { detectErrorType } from "./recovery";
 import { getSessionFingerprint, buildFingerprintHeaders, } from "./fingerprint";
 const log = createLogger("request");
 const PLUGIN_SESSION_ID = `-${crypto.randomUUID()}`;
+// Cascade/trajectory identity for Antigravity request labels, mirroring agy.
+// agy keeps one cascade id per conversation and one trajectory id per turn
+// sequence; the plugin keeps them stable per plugin instance (session-scoped).
+const ANTIGRAVITY_CASCADE_ID = crypto.randomUUID();
+const ANTIGRAVITY_TRAJECTORY_ID = crypto.randomUUID();
+let antigravityRequestStep = 0;
 // Per-session dedup of streamed thinking text (Gemini-3). Keyed by sessionId so
 // identical thinking text in DIFFERENT sessions is NOT cross-suppressed, and so
 // the memory footprint stays bounded (old sessions are evicted FIFO). A single
@@ -678,14 +684,6 @@ function applyClaudeThinkingSanitization(target, opts) {
 export function getPluginSessionId() {
     return PLUGIN_SESSION_ID;
 }
-function generateSyntheticProjectId() {
-    const adjectives = ["useful", "bright", "swift", "calm", "bold"];
-    const nouns = ["fuze", "wave", "spark", "flow", "core"];
-    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
-    const noun = nouns[Math.floor(Math.random() * nouns.length)];
-    const randomPart = crypto.randomUUID().slice(0, 5).toLowerCase();
-    return `${adj}-${noun}-${randomPart}`;
-}
 function ensureDefaultGemini3ThinkingLevel(requestPayload, effectiveModel, thinkingLevel) {
     if (!effectiveModel.toLowerCase().includes("gemini-3") ||
         isImageGenerationModel(effectiveModel)) {
@@ -904,7 +902,9 @@ export function prepareAntigravityRequest(input, init, accessToken, projectId, e
                     req.sessionId = signatureSessionKey;
                     stripInjectedDebugFromRequestPayload(req);
                     sanitizeGeminiGenerationConfigForModel(req, effectiveModel);
-                    ensureDefaultGemini3ThinkingLevel(req, effectiveModel, tierThinkingLevel);
+                    ensureDefaultGemini3ThinkingLevel(req, effectiveModel, headerStyle === "antigravity" && tierThinkingLevel
+                        ? tierThinkingLevel.toUpperCase()
+                        : tierThinkingLevel);
                     if (isClaude) {
                         // Steps 0-2: cross-model strip, thinking-block filtering, cache_control,
                         // and signed-thinking re-injection (shared with the non-wrapped branch).
@@ -1082,10 +1082,14 @@ export function prepareAntigravityRequest(input, init, accessToken, projectId, e
                             };
                         }
                         else if (tierThinkingLevel) {
-                            // Gemini 3 uses thinkingLevel string (low/medium/high)
+                            // Gemini 3 uses thinkingLevel string (low/medium/high).
+                            // agy 1.5.7 sends UPPERCASE levels to the Antigravity backend
+                            // (e.g. "MEDIUM"); the public Gemini API path keeps lowercase.
                             thinkingConfig = {
                                 includeThoughts: normalizedThinking.includeThoughts,
-                                thinkingLevel: tierThinkingLevel,
+                                thinkingLevel: headerStyle === "antigravity"
+                                    ? tierThinkingLevel.toUpperCase()
+                                    : tierThinkingLevel,
                             };
                         }
                         else {
@@ -1332,7 +1336,9 @@ export function prepareAntigravityRequest(input, init, accessToken, projectId, e
                             model: effectiveModel,
                             normalizedThinking: undefined, // Thinking config already applied above (lines 816-880)
                             tierThinkingBudget,
-                            tierThinkingLevel: tierThinkingLevel,
+                            tierThinkingLevel: (headerStyle === "antigravity" && tierThinkingLevel
+                                ? tierThinkingLevel.toUpperCase()
+                                : tierThinkingLevel),
                         });
                         toolDebugMissing = geminiResult.toolDebugMissing;
                         toolDebugSummaries.push(...geminiResult.toolDebugSummaries);
@@ -1497,7 +1503,7 @@ export function prepareAntigravityRequest(input, init, accessToken, projectId, e
                     }
                     : undefined);
                 const effectiveProjectId = projectId?.trim() ||
-                    (headerStyle === "antigravity" ? generateSyntheticProjectId() : "");
+                    (headerStyle === "antigravity" ? ANTIGRAVITY_DEFAULT_PROJECT_ID : "");
                 resolvedProjectId = effectiveProjectId;
                 // Inject Antigravity system instruction with role "user" (CLIProxyAPI v6.6.89 compatibility)
                 // This sets request.systemInstruction.role = "user" and request.systemInstruction.parts[0].text
@@ -1551,12 +1557,31 @@ export function prepareAntigravityRequest(input, init, accessToken, projectId, e
                 if (headerStyle === "antigravity") {
                     wrappedBody.requestType = "agent";
                     wrappedBody.userAgent = "antigravity";
-                    wrappedBody.requestId = "agent-" + crypto.randomUUID();
+                    // agy requestId format: agent/<cascade-uuid>/<epoch-ms>/<trajectory-uuid>/<turn>
+                    wrappedBody.requestId = `agent/${ANTIGRAVITY_CASCADE_ID}/${Date.now()}/${ANTIGRAVITY_TRAJECTORY_ID}/${antigravityRequestStep + 1}`;
                 }
                 if (wrappedBody.request && typeof wrappedBody.request === "object") {
                     // Use stable session ID for signature caching across multi-turn conversations
                     sessionId = signatureSessionKey;
                     wrappedBody.request.sessionId = signatureSessionKey;
+                    if (headerStyle === "antigravity") {
+                        // Cascade/trajectory telemetry labels, mirroring agy 1.5.7.
+                        // `model_enum` is omitted: agy fills it with an internal proto enum
+                        // name that cannot be derived faithfully for every model.
+                        const wrappedRequest = wrappedBody.request;
+                        const isClaudeModelId = typeof effectiveModel === "string" && effectiveModel.toLowerCase().includes("claude");
+                        wrappedRequest.labels = {
+                            cascade_id: ANTIGRAVITY_CASCADE_ID,
+                            root_cascade_id: ANTIGRAVITY_CASCADE_ID,
+                            trajectory_id: ANTIGRAVITY_TRAJECTORY_ID,
+                            request_id: `${ANTIGRAVITY_TRAJECTORY_ID}-${antigravityRequestStep}`,
+                            last_step_index: String(antigravityRequestStep),
+                            used_claude: isClaudeModelId ? "true" : "false",
+                            used_claude_conservative: "false",
+                            used_non_gemini_model: isClaudeModelId ? "true" : "false",
+                        };
+                        antigravityRequestStep += 1;
+                    }
                 }
                 body = JSON.stringify(wrappedBody);
             }
@@ -1883,7 +1908,6 @@ export const __testExports = {
     ensureThinkingBeforeToolUseInMessages,
     sanitizeRequestPayloadForAntigravity,
     signatureCacheProjectKey,
-    generateSyntheticProjectId,
     getDisplayedThinkingHashes,
     MIN_SIGNATURE_LENGTH,
     transformSseLine,

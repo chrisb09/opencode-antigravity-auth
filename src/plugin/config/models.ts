@@ -55,24 +55,6 @@ const DEFAULT_MODALITIES: ModelModalities = {
 };
 
 export const OPENCODE_MODEL_DEFINITIONS: OpencodeModelDefinitions = {
-  "antigravity-gemini-3-pro": {
-    name: "Gemini 3 Pro (Antigravity)",
-    limit: { context: 1048576, output: 65535 },
-    modalities: DEFAULT_MODALITIES,
-    variants: {
-      low: { thinkingLevel: "low" },
-      high: { thinkingLevel: "high" },
-    },
-  },
-  "antigravity-gemini-3.1-pro": {
-    name: "Gemini 3.1 Pro (Antigravity)",
-    limit: { context: 1048576, output: 65535 },
-    modalities: DEFAULT_MODALITIES,
-    variants: {
-      low: { thinkingLevel: "low" },
-      high: { thinkingLevel: "high" },
-    },
-  },
   "antigravity-gemini-3-flash": {
     name: "Gemini 3 Flash (Antigravity)",
     limit: { context: 1048576, output: 65536 },
@@ -84,40 +66,13 @@ export const OPENCODE_MODEL_DEFINITIONS: OpencodeModelDefinitions = {
       high: { thinkingLevel: "high" },
     },
   },
-  "antigravity-gemini-3.5-flash": {
-    name: "Gemini 3.5 Flash (Antigravity)",
-    limit: { context: 1048576, output: 65536 },
-    modalities: DEFAULT_MODALITIES,
-    variants: {
-      minimal: { thinkingLevel: "minimal" },
-      low: { thinkingLevel: "low" },
-      medium: { thinkingLevel: "medium" },
-      high: { thinkingLevel: "high" },
-    },
-  },
-  "antigravity-gemini-3.6-flash": {
-    name: "Gemini 3.6 Flash (Antigravity)",
-    temperature: false,
-    limit: { context: 1048576, output: 65536 },
-    modalities: DEFAULT_MODALITIES,
-    variants: {
-      low: { thinkingLevel: "low" },
-      medium: { thinkingLevel: "medium" },
-      high: { thinkingLevel: "high" },
-    },
-  },
-  "antigravity-gemini-3.7-flash": {
-    name: "Gemini 3.7 Flash (Antigravity)",
-    limit: { context: 1048576, output: 65536 },
-    modalities: DEFAULT_MODALITIES,
-    variants: {
-      low: { thinkingLevel: "low" },
-      medium: { thinkingLevel: "medium" },
-      high: { thinkingLevel: "high" },
-    },
-  },
-  "antigravity-gemini-3.8-flash": {
-    name: "Gemini 3.8 Flash (Antigravity)",
+  "gemini-3.8-flash": {
+    // Canonical Gemini 3.8 Flash entry. Routes Antigravity-first with Gemini
+    // CLI fallback; the Antigravity backend only serves tier-suffixed ids
+    // (gemini-3.8-flash-low/medium/high, captured from agy 1.5.7), which the
+    // resolver maps automatically. `antigravity-gemini-3.8-flash` remains a
+    // hidden explicit-quota alias. Medium is the agy default tier.
+    name: "Gemini 3.8 Flash",
     limit: { context: 1048576, output: 65536 },
     modalities: DEFAULT_MODALITIES,
     variants: {
@@ -127,13 +82,15 @@ export const OPENCODE_MODEL_DEFINITIONS: OpencodeModelDefinitions = {
     },
   },
   "antigravity-claude-sonnet-4-6": {
+    // Context raised from 200k to 250k per the backend's fetchAvailableModels
+    // response (captured from agy 1.5.7, 2026-11-12).
     name: "Claude Sonnet 4.6 (Antigravity)",
-    limit: { context: 200000, output: 64000 },
+    limit: { context: 250000, output: 64000 },
     modalities: DEFAULT_MODALITIES,
   },
   "antigravity-claude-opus-4-6-thinking": {
     name: "Claude Opus 4.6 Thinking (Antigravity)",
-    limit: { context: 200000, output: 64000 },
+    limit: { context: 250000, output: 64000 },
     modalities: DEFAULT_MODALITIES,
     variants: {
       low: { thinkingConfig: { thinkingBudget: 8192 } },
@@ -145,78 +102,9 @@ export const OPENCODE_MODEL_DEFINITIONS: OpencodeModelDefinitions = {
     limit: { context: 1048576, output: 65536 },
     modalities: DEFAULT_MODALITIES,
   },
-  "gemini-2.5-pro": {
-    name: "Gemini 2.5 Pro (Gemini CLI)",
-    limit: { context: 1048576, output: 65536 },
-    modalities: DEFAULT_MODALITIES,
-  },
   "gemini-3-flash-preview": {
     name: "Gemini 3 Flash Preview (Gemini CLI)",
     limit: { context: 1048576, output: 65536 },
-    modalities: DEFAULT_MODALITIES,
-  },
-  "gemini-3.5-flash": {
-    name: "Gemini 3.5 Flash (Gemini CLI)",
-    limit: { context: 1048576, output: 65536 },
-    modalities: DEFAULT_MODALITIES,
-  },
-  "gemini-3.5-flash-lite": {
-    name: "Gemini 3.5 Flash-Lite (Gemini CLI)",
-    temperature: false,
-    limit: { context: 1048576, output: 65536 },
-    modalities: DEFAULT_MODALITIES,
-    variants: {
-      minimal: { thinkingLevel: "minimal" },
-      low: { thinkingLevel: "low" },
-      medium: { thinkingLevel: "medium" },
-      high: { thinkingLevel: "high" },
-    },
-  },
-  "gemini-3.6-flash": {
-    name: "Gemini 3.6 Flash (Gemini CLI)",
-    temperature: false,
-    limit: { context: 1048576, output: 65536 },
-    modalities: DEFAULT_MODALITIES,
-    variants: {
-      medium: { thinkingLevel: "medium" },
-      high: { thinkingLevel: "high" },
-    },
-  },
-  "gemini-3.7-flash": {
-    name: "Gemini 3.7 Flash (Gemini CLI)",
-    limit: { context: 1048576, output: 65536 },
-    modalities: DEFAULT_MODALITIES,
-    variants: {
-      minimal: { thinkingLevel: "minimal" },
-      low: { thinkingLevel: "low" },
-      medium: { thinkingLevel: "medium" },
-      high: { thinkingLevel: "high" },
-    },
-  },
-  "gemini-3.8-flash": {
-    name: "Gemini 3.8 Flash (Gemini CLI)",
-    limit: { context: 1048576, output: 65536 },
-    modalities: DEFAULT_MODALITIES,
-    variants: {
-      minimal: { thinkingLevel: "minimal" },
-      low: { thinkingLevel: "low" },
-      medium: { thinkingLevel: "medium" },
-      high: { thinkingLevel: "high" },
-    },
-  },
-  "gemini-3-pro-preview": {
-    name: "Gemini 3 Pro Preview (Gemini CLI)",
-    limit: { context: 1048576, output: 65535 },
-    modalities: DEFAULT_MODALITIES,
-  },
-  "gemini-3.1-pro": {
-    name: "Gemini 3.1 Pro (Gemini CLI)",
-    limit: { context: 1048576, output: 65535 },
-    modalities: DEFAULT_MODALITIES,
-  },
-  "gemini-3.1-pro-preview-customtools": {
-    name: "Gemini 3.1 Pro Preview Custom Tools (Gemini CLI)",
-    limit: { context: 1048576, output: 65535 },
     modalities: DEFAULT_MODALITIES,
   },
 };
@@ -242,7 +130,9 @@ function titleFromModelId(modelId: string): string {
 
 function defaultLimitForModel(modelId: string): ModelLimit {
   if (modelId.includes("claude")) {
-    return { context: 200000, output: 64000 };
+    // 250k context per the backend's fetchAvailableModels response
+    // (captured from agy 1.5.7, 2026-11-12).
+    return { context: 250000, output: 64000 };
   }
   return { context: 1048576, output: 65536 };
 }
@@ -263,6 +153,15 @@ function defaultVariantsForModel(modelId: string): Record<string, ModelVariant> 
       };
     }
     if (normalized.includes("flash")) {
+      // Gemini 3.8 Flash only supports low/medium/high (no minimal),
+      // matching the tier-suffixed backend ids agy 1.5.7 serves.
+      if (/^gemini-3\.8-flash(?:-|$)/.test(normalized)) {
+        return {
+          low: { thinkingLevel: "low" },
+          medium: { thinkingLevel: "medium" },
+          high: { thinkingLevel: "high" },
+        };
+      }
       return {
         minimal: { thinkingLevel: "minimal" },
         low: { thinkingLevel: "low" },

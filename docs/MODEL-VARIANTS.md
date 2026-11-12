@@ -50,15 +50,16 @@ The plugin accepts different variant formats depending on the model family:
 
 Gemini 3 models use string-based thinking levels. Available levels differ by model:
 
-| Level | 3/3.5/3.7/3.8 Flash | 3.6 Flash | 3.5 Flash-Lite | Pro | Description |
-|-------|-------------|-----------|----------------|-----|-------------|
-| `minimal` | ✅ | ❌ | ✅ | ❌ | Minimal thinking, lowest latency |
-| `low` | ✅ | Antigravity only | ✅ | ✅ | Light thinking |
-| `medium` | ✅ | ✅ | ✅ | ❌ | Balanced thinking |
-| `high` | ✅ | ✅ | ✅ | ✅ | Maximum thinking |
+| Level | 3 Flash | 3.8 Flash | 3.6 Flash (legacy) | 3.5 Flash-Lite (legacy) | Pro | Description |
+|-------|---------|-----------|-------------------|-------------------------|-----|-------------|
+| `minimal` | ✅ | ❌ | ❌ | ✅ | ❌ | Minimal thinking, lowest latency |
+| `low` | ✅ | ✅ | ✅ | ✅ | ✅ | Light thinking |
+| `medium` | ✅ | ✅ | ✅ | ✅ | ❌ | Balanced thinking |
+| `high` | ✅ | ✅ | ✅ | ✅ | ✅ | Maximum thinking |
 
-> **Note:** The API rejects invalid levels (e.g., `"minimal"` on Pro). Configure variants accordingly.
-> Defaults are model-specific: Gemini 3.6 Flash uses `medium`, Gemini 3.5 Flash-Lite uses `minimal`, and existing plugin models retain their current defaults.
+> **Note:** The API rejects invalid levels (e.g., `"minimal"` on Pro or 3.8 Flash). Configure variants accordingly.
+> Defaults are model-specific: Gemini 3.8 Flash uses `medium` (matching agy 1.5.7's shipped default), Gemini 3.6 Flash uses `medium`, Gemini 3.5 Flash-Lite uses `minimal`, and other Gemini 3 models default to `low`.
+> On the wire, the Antigravity backend receives UPPERCASE levels (e.g. `"MEDIUM"`, mirroring agy 1.5.7); the public Gemini API path keeps lowercase.
 
 ### Gemini 3 Pro Example
 

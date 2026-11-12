@@ -335,7 +335,7 @@ describe("api-key agy sdk support", () => {
         temperature: 0.7,
         topP: 0.9,
         thinkingConfig: {
-          thinkingLevel: "low",
+          thinkingLevel: "medium",
           includeThoughts: true,
         },
       },

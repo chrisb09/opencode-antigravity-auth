@@ -11,14 +11,18 @@ import {
   findCredentialIDForEmail,
   syncCredentialToDisk,
 } from "./accounts.js";
-import { v2ModelDefinitions } from "./models.js";
+import { v2CompatModelDefinitions, v2ModelDefinitions } from "./models.js";
 
 const OAUTH_METHOD_ID = "oauth";
 const integrationID = Integration.ID.make("antigravity");
 const providerID = Provider.ID.make("antigravity");
 const methodID = Integration.MethodID.make(OAUTH_METHOD_ID);
 
-function modelInfo(id: string, definition: OpencodeModelDefinition): Model.Info {
+function modelInfo(
+  id: string,
+  definition: OpencodeModelDefinition,
+  status: "active" | "deprecated" = "active",
+): Model.Info {
   const modelID = Model.ID.make(id);
   return {
     ...Model.Info.default(providerID, modelID),
@@ -41,7 +45,7 @@ function modelInfo(id: string, definition: OpencodeModelDefinition): Model.Info 
       id: Model.VariantID.make(variantID),
       settings: settings as Record<string, unknown>,
     })),
-    status: "active",
+    status,
     enabled: true,
     time: { released: 0 },
   } as unknown as Model.Info;
@@ -312,7 +316,14 @@ export default Plugin.define({
       } as unknown as Provider.Info;
       editor.add({
         info,
-        models: v2ModelDefinitions().map(([id, definition]) => modelInfo(id, definition)),
+        models: [
+          ...v2ModelDefinitions().map(([id, definition]) => modelInfo(id, definition)),
+          // Legacy ids stay routable for previously-configured model strings,
+          // but are hidden from the default picker.
+          ...v2CompatModelDefinitions().map(([id, definition]) =>
+            modelInfo(id, definition, "deprecated"),
+          ),
+        ],
       });
     });
 

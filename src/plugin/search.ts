@@ -8,7 +8,7 @@
 
 import {
   ANTIGRAVITY_ENDPOINT,
-  getAntigravityHeaders,
+  ANTIGRAVITY_CLI_USER_AGENT,
   SEARCH_MODEL,
   SEARCH_TIMEOUT_MS,
   SEARCH_SYSTEM_INSTRUCTION,
@@ -284,7 +284,9 @@ export async function executeSearch(
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        ...getAntigravityHeaders(),
+        // agy 1.5.7 sends only the CLI User-Agent (plus auth/content-type)
+        // on generateContent; IDE-style headers are not used.
+        "User-Agent": ANTIGRAVITY_CLI_USER_AGENT,
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },

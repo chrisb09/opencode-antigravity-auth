@@ -44,14 +44,19 @@ export declare const ANTIGRAVITY_ENDPOINT = "https://daily-cloudcode-pa.googleap
 export declare const GEMINI_CLI_ENDPOINT = "https://cloudcode-pa.googleapis.com";
 /**
  * AGY's consumer OAuth flow uses this backend project when no managed project is returned.
+ * Captured from agy 1.5.7 (2026-11-12): every project-scoped v1internal call
+ * (fetchAvailableModels, fetchUserInfo, fetchAdminControls, retrieveUserQuotaSummary,
+ * streamGenerateContent) sends "aicode-consumers".
  */
-export declare const ANTIGRAVITY_DEFAULT_PROJECT_ID = "default-cli-project";
+export declare const ANTIGRAVITY_DEFAULT_PROJECT_ID = "aicode-consumers";
 /**
  * User-Agent mirroring the official Antigravity CLI (agy).
  * Accepted by v1internal:loadCodeAssist and friends; IDE-style UAs can be
  * rejected or gated by the backend (cf. upstream issue #592).
+ * Captured from agy 1.5.7 on Linux (2026-11-12); the cl= value is the CLI's
+ * changelist number and must match the version it belongs to.
  */
-export declare const ANTIGRAVITY_CLI_USER_AGENT = "antigravity/cli/1.1.13 (aidev_client; os_type=linux; arch=amd64; cl=964361259; auth_method=consumer)";
+export declare const ANTIGRAVITY_CLI_USER_AGENT = "antigravity/cli/1.5.7 (aidev_client; os_type=linux; arch=amd64; cl=1019769835; auth_method=consumer)";
 export declare const ANTIGRAVITY_VERSION_FALLBACK = "1.18.3";
 export declare function getAntigravityVersion(): string;
 /**

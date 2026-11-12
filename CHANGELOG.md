@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Request pipeline now clones agy 1.5.7 (MITM-verified)** - Captured live traffic from the installed `agy` CLI (v1.5.7) and aligned the plugin's wire behavior: CLI User-Agent updated to `antigravity/cli/1.5.7 (...; cl=1019769835; auth_method=consumer)`; the consumer fallback project is now the fixed `aicode-consumers` (replacing random synthetic project ids and `default-cli-project`); `requestId` uses agy's `agent/<cascade-uuid>/<epoch-ms>/<trajectory-uuid>/<turn>` format; cascade/trajectory telemetry `labels` are sent on generate requests; `thinkingLevel` is sent UPPERCASE (e.g. `MEDIUM`) on the Antigravity path while the public Gemini API path keeps lowercase; quota/search/verification requests use the CLI User-Agent without IDE-style headers, matching agy; the onboard fallback tier id is `free-tier` (the backend's reported `currentTier.id`).
+- **Gemini 3.8 Flash consolidation** - Single canonical `gemini-3.8-flash` catalog entry (Antigravity-first with Gemini CLI fallback) with `low`/`medium`/`high` variants and `medium` as the default tier (agy's shipped default); the `minimal` variant is removed (the backend serves no minimal tier for 3.8; `minimal` remains a hidden alias for `low`). `antigravity-gemini-3.8-flash` is no longer a separate picker entry but still resolves as a hidden explicit-quota alias. `gemini-flash-latest` still aliases to `gemini-3.8-flash`.
+- **Default catalog pruned to the V2 set** - Removed `antigravity-gemini-3-pro`, `antigravity-gemini-3.1-pro`, `antigravity-gemini-3.{5,6,7}-flash`, `gemini-2.5-pro`, `gemini-3-pro-preview`, `gemini-3.1-pro`, `gemini-3.1-pro-preview-customtools`, `gemini-3.5-flash`, `gemini-3.5-flash-lite`, `gemini-3.6-flash`, `gemini-3.7-flash` from the default catalog. All removed ids keep resolving via the model resolver for existing configs.
+- **Claude context limit raised to 250k** - The backend's `fetchAvailableModels` reports 250,000 context for `claude-sonnet-4-6` and `claude-opus-4-6-thinking` (previously 200,000). Catalog entries and the dynamic-discovery default now use 250k.
+
 ### Added
 
 - **OpenCode V2 support** - Added a V2 server entrypoint (`v2/`) and TUI plugin (`tui/`) while keeping the V1 root entrypoint. V2 includes credential-to-account-pool sync, live account rotation, quota/switch/toggle/verify TUI commands, update-checker support for V2 `plugins` config, and a pruned model catalog. V1 behavior remains unchanged.

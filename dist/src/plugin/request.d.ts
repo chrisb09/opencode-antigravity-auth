@@ -41,7 +41,6 @@ declare function ensureThinkingBeforeToolUseInMessages(messages: any[], signatur
  * Gets the stable session ID for this plugin instance.
  */
 export declare function getPluginSessionId(): string;
-declare function generateSyntheticProjectId(): string;
 /**
  * Detects requests headed to the Google Generative Language API so we can intercept them.
  */
@@ -107,7 +106,6 @@ export declare const __testExports: {
     ensureThinkingBeforeToolUseInMessages: typeof ensureThinkingBeforeToolUseInMessages;
     sanitizeRequestPayloadForAntigravity: typeof sanitizeRequestPayloadForAntigravity;
     signatureCacheProjectKey: typeof signatureCacheProjectKey;
-    generateSyntheticProjectId: typeof generateSyntheticProjectId;
     getDisplayedThinkingHashes: typeof getDisplayedThinkingHashes;
     MIN_SIGNATURE_LENGTH: number;
     transformSseLine: typeof transformSseLine;

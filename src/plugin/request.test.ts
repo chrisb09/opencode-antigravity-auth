@@ -8,7 +8,7 @@ import {
 } from "./request";
 import { DEFAULT_CONFIG } from "./config";
 import { initializeDebug } from "./debug";
-import { SKIP_THOUGHT_SIGNATURE } from "../constants";
+import { SKIP_THOUGHT_SIGNATURE, ANTIGRAVITY_DEFAULT_PROJECT_ID } from "../constants";
 import { cacheSignature, getCachedSignature, clearSignatureCache } from "./cache";
 import * as config from "./config";
 import type { SignatureStore, ThoughtBuffer, StreamingCallbacks, StreamingOptions } from "./core/streaming/types";
@@ -30,7 +30,6 @@ const {
   hasSignedThinkingInContents,
   hasToolUseInMessages,
   hasSignedThinkingInMessages,
-  generateSyntheticProjectId,
   getDisplayedThinkingHashes,
   MIN_SIGNATURE_LENGTH,
   transformStreamingPayload,
@@ -386,18 +385,9 @@ describe("request.ts", () => {
     });
   });
 
-  describe("generateSyntheticProjectId", () => {
-    it("generates a string in expected format", () => {
-      const id = generateSyntheticProjectId();
-      expect(id).toMatch(/^[a-z]+-[a-z]+-[a-z0-9]{5}$/);
-    });
-
-    it("generates unique IDs on each call", () => {
-      const ids = new Set<string>();
-      for (let i = 0; i < 10; i++) {
-        ids.add(generateSyntheticProjectId());
-      }
-      expect(ids.size).toBe(10);
+  describe("ANTIGRAVITY_DEFAULT_PROJECT_ID (agy consumer project)", () => {
+    it("uses the fixed aicode-consumers project agy sends", () => {
+      expect(ANTIGRAVITY_DEFAULT_PROJECT_ID).toBe("aicode-consumers");
     });
   });
 
@@ -1226,7 +1216,7 @@ it("removes API key headers", () => {
         expect(result.effectiveModel).toBe("gemini-3.5-flash-low");
         const wrapped = JSON.parse(result.init.body as string);
         expect(wrapped.request.generationConfig.thinkingConfig).toMatchObject({
-          thinkingLevel: "low",
+          thinkingLevel: "LOW",
           includeThoughts: true,
         });
       });
@@ -1249,7 +1239,7 @@ it("removes API key headers", () => {
         expect(result.effectiveModel).toBe("gemini-3.5-flash-low");
         const wrapped = JSON.parse(result.init.body as string);
         expect(wrapped.request.generationConfig.thinkingConfig).toMatchObject({
-          thinkingLevel: "low",
+          thinkingLevel: "LOW",
           includeThoughts: true,
         });
       });
@@ -1277,7 +1267,7 @@ it("removes API key headers", () => {
         expect(result.effectiveModel).toBe("gemini-3.5-flash-low");
         const wrapped = JSON.parse(result.init.body as string);
         expect(wrapped.request.generationConfig.thinkingConfig).toMatchObject({
-          thinkingLevel: "medium",
+          thinkingLevel: "MEDIUM",
           includeThoughts: false,
         });
       });
@@ -1306,7 +1296,7 @@ it("removes API key headers", () => {
         const wrapped = JSON.parse(result.init.body as string);
         expect(wrapped.model).toBe("gemini-3-flash-agent");
         expect(wrapped.request.generationConfig.thinkingConfig).toMatchObject({
-          thinkingLevel: "high",
+          thinkingLevel: "HIGH",
           includeThoughts: true,
         });
       });
@@ -1334,7 +1324,7 @@ it("removes API key headers", () => {
         const wrapped = JSON.parse(result.init.body as string);
         expect(wrapped.model).toBe("gemini-3-flash-agent");
         expect(wrapped.request.generationConfig.thinkingConfig).toMatchObject({
-          thinkingLevel: "high",
+          thinkingLevel: "HIGH",
           includeThoughts: true,
         });
       });
@@ -1363,7 +1353,7 @@ it("removes API key headers", () => {
         const wrapped = JSON.parse(result.init.body as string);
         expect(wrapped.model).toBe("gemini-3.6-flash-medium");
         expect(wrapped.request.generationConfig.thinkingConfig).toMatchObject({
-          thinkingLevel: "medium",
+          thinkingLevel: "MEDIUM",
           includeThoughts: true,
         });
         expect(wrapped.request.generationConfig).not.toHaveProperty("temperature");
@@ -1391,7 +1381,7 @@ it("removes API key headers", () => {
         const wrapped = JSON.parse(result.init.body as string);
         expect(wrapped.model).toBe("gemini-3.6-flash-high");
         expect(wrapped.request.generationConfig.thinkingConfig).toMatchObject({
-          thinkingLevel: "high",
+          thinkingLevel: "HIGH",
           includeThoughts: true,
         });
       });
@@ -1415,7 +1405,7 @@ it("removes API key headers", () => {
         const wrapped = JSON.parse(result.init.body as string);
         expect(wrapped.model).toBe("gemini-3.7-flash-high");
         expect(wrapped.request.generationConfig.thinkingConfig).toMatchObject({
-          thinkingLevel: "high",
+          thinkingLevel: "HIGH",
           includeThoughts: true,
         });
       });
@@ -1439,7 +1429,7 @@ it("removes API key headers", () => {
         const wrapped = JSON.parse(result.init.body as string);
         expect(wrapped.model).toBe("gemini-3.8-flash-high");
         expect(wrapped.request.generationConfig.thinkingConfig).toMatchObject({
-          thinkingLevel: "high",
+          thinkingLevel: "HIGH",
           includeThoughts: true,
         });
       });

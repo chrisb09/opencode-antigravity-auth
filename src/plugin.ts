@@ -6,8 +6,8 @@ import {
   ANTIGRAVITY_ENDPOINT,
   ANTIGRAVITY_ENDPOINT_FALLBACKS,
   ANTIGRAVITY_ENDPOINT_PROD,
+  ANTIGRAVITY_CLI_USER_AGENT,
   ANTIGRAVITY_PROVIDER_ID,
-  getAntigravityHeaders,
   type HeaderStyle,
 } from "./constants";
 import { authorizeAntigravity, exchangeAntigravity } from "./antigravity/oauth";
@@ -798,7 +798,9 @@ async function verifyAccountAccess(
     ANTIGRAVITY_DEFAULT_PROJECT_ID;
 
   const headers: Record<string, string> = {
-    ...getAntigravityHeaders(),
+    // agy 1.5.7 sends only the CLI User-Agent (plus auth/content-type)
+    // on generateContent; IDE-style headers are not used.
+    "User-Agent": ANTIGRAVITY_CLI_USER_AGENT,
     Authorization: `Bearer ${refreshedAuth.access}`,
     "Content-Type": "application/json",
   };

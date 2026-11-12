@@ -5,12 +5,12 @@ import { createAntigravityPlugin } from "../src/plugin";
 import { startOAuthListener } from "../src/plugin/server";
 import { refreshAccessToken } from "../src/plugin/token";
 import { activateCredentialOnDisk, findCredentialIDForEmail, syncCredentialToDisk, } from "./accounts.js";
-import { v2ModelDefinitions } from "./models.js";
+import { v2CompatModelDefinitions, v2ModelDefinitions } from "./models.js";
 const OAUTH_METHOD_ID = "oauth";
 const integrationID = Integration.ID.make("antigravity");
 const providerID = Provider.ID.make("antigravity");
 const methodID = Integration.MethodID.make(OAUTH_METHOD_ID);
-function modelInfo(id, definition) {
+function modelInfo(id, definition, status = "active") {
     const modelID = Model.ID.make(id);
     return {
         ...Model.Info.default(providerID, modelID),
@@ -33,7 +33,7 @@ function modelInfo(id, definition) {
             id: Model.VariantID.make(variantID),
             settings: settings,
         })),
-        status: "active",
+        status,
         enabled: true,
         time: { released: 0 },
     };
@@ -299,7 +299,12 @@ export default Plugin.define({
             };
             editor.add({
                 info,
-                models: v2ModelDefinitions().map(([id, definition]) => modelInfo(id, definition)),
+                models: [
+                    ...v2ModelDefinitions().map(([id, definition]) => modelInfo(id, definition)),
+                    // Legacy ids stay routable for previously-configured model strings,
+                    // but are hidden from the default picker.
+                    ...v2CompatModelDefinitions().map(([id, definition]) => modelInfo(id, definition, "deprecated")),
+                ],
             });
         });
         const credentialEvents = new AbortController();
