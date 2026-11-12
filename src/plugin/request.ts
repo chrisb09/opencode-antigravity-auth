@@ -1052,6 +1052,25 @@ interface RequestInitWithDuplex extends RequestInit {
   duplex?: "half";
 }
 
+/**
+ * Headers injected by the OpenCode harness (session affinity/observability)
+ * that the agy CLI does not send. Stripped for wire parity with agy.
+ */
+const HARNESS_INJECTED_HEADER_NAMES = [
+  "x-opencode-client",
+  "x-opencode-project",
+  "x-opencode-session",
+  "x-opencode-session-id",
+  "x-session-affinity",
+  "x-session-id",
+] as const;
+
+function stripHarnessHeaders(headers: Headers): void {
+  for (const name of HARNESS_INJECTED_HEADER_NAMES) {
+    headers.delete(name);
+  }
+}
+
 function mergeRequestHeaders(
   requestHeaders: Headers | undefined,
   initHeaders: HeadersInit | undefined,
@@ -1063,6 +1082,7 @@ function mergeRequestHeaders(
       headers.set(key, value);
     });
   }
+  stripHarnessHeaders(headers);
   return headers;
 }
 
@@ -1221,6 +1241,9 @@ export function prepareAntigravityRequest(
   const requestInput = typeof input === "string" ? undefined : input;
   const baseInit = initFromRequest(requestInput, init);
   const headers = new Headers(baseInit.headers);
+  // Strip OpenCode-harness session headers on every path (string URL inputs
+  // bypass mergeRequestHeaders); agy does not send them.
+  stripHarnessHeaders(headers);
   let resolvedProjectId = projectId?.trim() || "";
   let toolDebugMissing = 0;
   const toolDebugSummaries: string[] = [];

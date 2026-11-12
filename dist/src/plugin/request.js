@@ -708,6 +708,23 @@ function ensureDefaultGemini3ThinkingLevel(requestPayload, effectiveModel, think
     requestPayload.generationConfig = generationConfig;
 }
 const STREAM_ACTION = "streamGenerateContent";
+/**
+ * Headers injected by the OpenCode harness (session affinity/observability)
+ * that the agy CLI does not send. Stripped for wire parity with agy.
+ */
+const HARNESS_INJECTED_HEADER_NAMES = [
+    "x-opencode-client",
+    "x-opencode-project",
+    "x-opencode-session",
+    "x-opencode-session-id",
+    "x-session-affinity",
+    "x-session-id",
+];
+function stripHarnessHeaders(headers) {
+    for (const name of HARNESS_INJECTED_HEADER_NAMES) {
+        headers.delete(name);
+    }
+}
 function mergeRequestHeaders(requestHeaders, initHeaders) {
     if (!requestHeaders && !initHeaders)
         return undefined;
@@ -717,6 +734,7 @@ function mergeRequestHeaders(requestHeaders, initHeaders) {
             headers.set(key, value);
         });
     }
+    stripHarnessHeaders(headers);
     return headers;
 }
 function initFromRequest(request, init, body) {
@@ -772,6 +790,9 @@ export function prepareAntigravityRequest(input, init, accessToken, projectId, e
     const requestInput = typeof input === "string" ? undefined : input;
     const baseInit = initFromRequest(requestInput, init);
     const headers = new Headers(baseInit.headers);
+    // Strip OpenCode-harness session headers on every path (string URL inputs
+    // bypass mergeRequestHeaders); agy does not send them.
+    stripHarnessHeaders(headers);
     let resolvedProjectId = projectId?.trim() || "";
     let toolDebugMissing = 0;
     const toolDebugSummaries = [];

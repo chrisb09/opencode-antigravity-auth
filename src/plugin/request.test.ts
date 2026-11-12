@@ -541,6 +541,38 @@ describe("request.ts", () => {
       expect(result.request).toBe("https://example.com/api");
     });
 
+    it("strips harness-injected session headers for agy wire parity", async () => {
+      const result = await prepareAntigravityRequest(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+        {
+          method: "POST",
+          headers: {
+            "x-opencode-client": "cli",
+            "x-opencode-project": "abc123",
+            "x-opencode-session": "ses_test",
+            "x-opencode-session-id": "ses_test",
+            "x-session-affinity": "ses_test",
+            "x-session-id": "ses_test",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ contents: [] }),
+        },
+        mockAccessToken,
+        mockProjectId,
+        undefined,
+        "antigravity"
+      );
+
+      const headers = result.init.headers as Headers;
+      expect(headers.get("x-opencode-client")).toBeNull();
+      expect(headers.get("x-opencode-project")).toBeNull();
+      expect(headers.get("x-opencode-session")).toBeNull();
+      expect(headers.get("x-opencode-session-id")).toBeNull();
+      expect(headers.get("x-session-affinity")).toBeNull();
+      expect(headers.get("x-session-id")).toBeNull();
+      expect(headers.get("Authorization")).toBe("Bearer test-token");
+    });
+
     it("returns unchanged request for URLs without model pattern", () => {
       const result = prepareAntigravityRequest(
         "https://generativelanguage.googleapis.com/v1/models",
