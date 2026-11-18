@@ -21,7 +21,7 @@ describe("V2 model catalog", () => {
     expect(ids).toEqual([
       "antigravity-gemini-3-flash",
       "gemini-3.8-flash",
-      "antigravity-gemini-4-hydrogen-sonar",
+      "antigravity-gemini-4-hydrogen",
       "gemini-2.5-flash",
       "gemini-3-flash-preview",
     ]);  });
@@ -32,13 +32,16 @@ describe("V2 model catalog", () => {
       "antigravity-claude-opus-4-6-thinking",
       "antigravity-gemini-4-carbon",
       "antigravity-gemini-4-argon",
-      "antigravity-gemini-4-hydrogen",
       "antigravity-gemini-4-neon",
       "antigravity-claude-sonnet-5-5",
       "antigravity-claude-opus-5-5-thinking",
+      // Experiment-lane alias of the canonical hydrogen entry.
+      "antigravity-gemini-4-hydrogen-sonar",
     ]) {
       expect(HIDDEN_MODEL_IDS.has(id), id).toBe(true);
     }
+    // Hydrogen itself is canonically visible (mapped to the sonar lane).
+    expect(HIDDEN_MODEL_IDS.has("antigravity-gemini-4-hydrogen")).toBe(false);
   });
 
   it("keeps every non-hidden catalog entry in V2", () => {

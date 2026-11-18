@@ -22,7 +22,7 @@ describe("OPENCODE_MODEL_DEFINITIONS", () => {
       "antigravity-claude-opus-4-6-thinking",
       "antigravity-claude-sonnet-4-6",
       "antigravity-gemini-3-flash",
-      "antigravity-gemini-4-hydrogen-sonar",
+      "antigravity-gemini-4-hydrogen",
       "gemini-2.5-flash",
       "gemini-3-flash-preview",
       "gemini-3.8-flash",
@@ -64,9 +64,9 @@ describe("OPENCODE_MODEL_DEFINITIONS", () => {
     });
   });
 
-  it("exposes the live-verified Gemini 4 Hydrogen Sonar entry with level variants", () => {
-    const model = getModel("antigravity-gemini-4-hydrogen-sonar");
-    expect(model.name).toBe("Gemini 4 Hydrogen Sonar (Antigravity)");
+  it("exposes the public-facing Gemini 4 Hydrogen entry with level variants", () => {
+    const model = getModel("antigravity-gemini-4-hydrogen");
+    expect(model.name).toBe("Gemini 4 Hydrogen (Antigravity)");
     expect(model.limit).toEqual({ context: 1048576, output: 65536 });
     expect(model.variants).toEqual({
       low: { thinkingLevel: "low" },
@@ -198,10 +198,11 @@ describe("dynamic model discovery helpers", () => {
     });
   });
 
-  it("skips disabled placeholder stubs and internal helper models", () => {
+  it("skips disabled placeholder stubs, internal helper models, and sonar experiment lanes", () => {
     // Observed in the real fetchAvailableModels response (2026-11-18): the
     // Gemini 4 lineup is announced as "-disabled"-suffixed placeholder rows
-    // that 404 on generation, alongside internal chat_*/tab_* helpers.
+    // that 404 on generation, alongside internal chat_*/tab_* helpers, with
+    // the served "gemini-4-hydrogen-sonar" lane duplicating its parent id.
     const models = modelsFromAntigravityAvailableModels({
       "gemini-4-carbon-disabled": {
         displayName: "Gemini 4 Carbon",
@@ -216,13 +217,19 @@ describe("dynamic model discovery helpers", () => {
       chat_20706: { isInternal: true, maxTokens: 16384 },
       tab_flash_lite_preview: { isInternal: true },
       "gemini-4-hydrogen-sonar": { maxTokens: 1048576, maxOutputTokens: 65536 },
+      "gemini-4-hydrogen": {
+        disabled: true,
+        maxTokens: 1048576,
+        maxOutputTokens: 262144,
+      },
     });
 
     expect(models["antigravity-gemini-4-carbon-disabled"]).toBeUndefined();
     expect(models["antigravity-gemini-4-neon-disabled"]).toBeUndefined();
     expect(models["antigravity-chat_20706"]).toBeUndefined();
     expect(models["antigravity-tab_flash_lite_preview"]).toBeUndefined();
-    expect(models["antigravity-gemini-4-hydrogen-sonar"]).toBeDefined();
+    // The experiment-lane row is not a catalog entry of its own.
+    expect(models["antigravity-gemini-4-hydrogen-sonar"]).toBeUndefined();
   });
 
   it("uses backend-reported token limits for discovered models", () => {

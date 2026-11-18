@@ -35,13 +35,17 @@ export const HIDDEN_MODEL_IDS = new Set([
   // bare ids; Claude 5.5 is not listed at all). Registered hidden so
   // explicit requests route correctly the moment the backend starts serving
   // them (e.g. on paid accounts); model discovery adds visible entries
-  // automatically for accounts that have them.
+  // automatically for accounts that have them. (Gemini 4 Hydrogen is
+  // canonically visible instead: its catalog entry maps to the servable
+  // "sonar" experiment lane until the bare id goes live.)
   "antigravity-gemini-4-carbon",
   "antigravity-gemini-4-argon",
-  "antigravity-gemini-4-hydrogen",
   "antigravity-gemini-4-neon",
   "antigravity-claude-sonnet-5-5",
   "antigravity-claude-opus-5-5-thinking",
+  // Experiment-lane alias of the canonical antigravity-gemini-4-hydrogen
+  // entry; kept routable for model strings that referenced the lane directly.
+  "antigravity-gemini-4-hydrogen-sonar",
 ]);
 
 export function v2ModelDefinitions(): Array<[string, OpencodeModelDefinition]> {

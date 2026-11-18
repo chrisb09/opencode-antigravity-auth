@@ -74,6 +74,7 @@ import {
   resolveAntigravityGemini36FlashBackendModel,
   resolveAntigravityGemini37FlashBackendModel,
   resolveAntigravityGemini38FlashBackendModel,
+  resolveAntigravityGemini4HydrogenBackendModel,
   getDefaultGemini3ThinkingLevel,
   isGeminiThinkingLevelModel,
   isClaudeModel,
@@ -81,6 +82,7 @@ import {
   CLAUDE_THINKING_MAX_OUTPUT_TOKENS,
   type ThinkingTier,
 } from "./transform";
+import { getCachedAntigravityAvailableModels } from "./model-catalog";
 import { detectErrorType } from "./recovery";
 import {
   getSessionFingerprint,
@@ -1350,6 +1352,15 @@ export function prepareAntigravityRequest(
   const resolved = resolveModelForHeaderStyle(rawModel, headerStyle);
   let effectiveModel = resolved.actualModel;
 
+  // Live model registry knowledge (last successful fetchAvailableModels):
+  // decides whether the bare public Gemini 4 Hydrogen id is served yet or
+  // requests must map to the servable "sonar" experiment lane. Cold/missing
+  // cache keeps the lane mapping (today's verified-working behavior).
+  const cachedRegistryModels = getCachedAntigravityAvailableModels();
+  const publicHydrogenRow = cachedRegistryModels?.["gemini-4-hydrogen"];
+  const gemini4HydrogenPublicEnabled =
+    !!publicHydrogenRow && publicHydrogenRow.disabled !== true;
+
   const streaming = rawAction === STREAM_ACTION;
   const defaultEndpoint =
     headerStyle === "gemini-cli" ? GEMINI_CLI_ENDPOINT : ANTIGRAVITY_ENDPOINT;
@@ -1428,6 +1439,12 @@ export function prepareAntigravityRequest(
         }
 
         if (headerStyle === "antigravity") {
+          const gemini4HydrogenBackendModel =
+            resolveAntigravityGemini4HydrogenBackendModel(
+              effectiveModel,
+              tierThinkingLevel,
+              gemini4HydrogenPublicEnabled,
+            );
           const gemini38FlashBackendModel =
             resolveAntigravityGemini38FlashBackendModel(
               effectiveModel,
@@ -1448,7 +1465,10 @@ export function prepareAntigravityRequest(
               effectiveModel,
               tierThinkingLevel,
             );
-          if (gemini38FlashBackendModel) {
+          if (gemini4HydrogenBackendModel) {
+            effectiveModel = gemini4HydrogenBackendModel;
+            wrappedBody.model = gemini4HydrogenBackendModel;
+          } else if (gemini38FlashBackendModel) {
             effectiveModel = gemini38FlashBackendModel;
             wrappedBody.model = gemini38FlashBackendModel;
           } else if (gemini37FlashBackendModel) {
@@ -1600,6 +1620,12 @@ export function prepareAntigravityRequest(
         }
 
         if (headerStyle === "antigravity") {
+          const gemini4HydrogenBackendModel =
+            resolveAntigravityGemini4HydrogenBackendModel(
+              effectiveModel,
+              tierThinkingLevel,
+              gemini4HydrogenPublicEnabled,
+            );
           const gemini38FlashBackendModel =
             resolveAntigravityGemini38FlashBackendModel(
               effectiveModel,
@@ -1620,7 +1646,9 @@ export function prepareAntigravityRequest(
               effectiveModel,
               tierThinkingLevel,
             );
-          if (gemini38FlashBackendModel) {
+          if (gemini4HydrogenBackendModel) {
+            effectiveModel = gemini4HydrogenBackendModel;
+          } else if (gemini38FlashBackendModel) {
             effectiveModel = gemini38FlashBackendModel;
           } else if (gemini37FlashBackendModel) {
             effectiveModel = gemini37FlashBackendModel;

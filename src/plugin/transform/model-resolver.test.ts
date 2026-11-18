@@ -3,6 +3,7 @@ import {
   resolveModelWithTier,
   resolveModelWithVariant,
   resolveModelForHeaderStyle,
+  resolveAntigravityGemini4HydrogenBackendModel,
 } from "./model-resolver";
 
 describe("resolveModelWithTier", () => {
@@ -384,20 +385,56 @@ describe("resolveModelWithTier", () => {
 
   describe("Gemini 4 models", () => {
     // The Gemini 4 line (Carbon/Argon/Hydrogen/Neon) uses bare backend ids
-    // with uppercase thinkingLevel strings, verified live on
-    // gemini-4-hydrogen-sonar (2026-11-18). Tier suffixes must be stripped
+    // with uppercase thinkingLevel strings, verified live on the hydrogen
+    // "sonar" experiment lane (2026-11-18). Tier suffixes must be stripped
     // into thinkingLevel, never numeric budgets.
 
-    it("antigravity-gemini-4-hydrogen-sonar defaults to medium thinkingLevel", () => {
-      const result = resolveModelWithTier(
-        "antigravity-gemini-4-hydrogen-sonar",
-      );
-      expect(result.actualModel).toBe("gemini-4-hydrogen-sonar");
+    it("antigravity-gemini-4-hydrogen defaults to medium thinkingLevel (bare backend id; lane mapping happens at request time)", () => {
+      const result = resolveModelWithTier("antigravity-gemini-4-hydrogen");
+      expect(result.actualModel).toBe("gemini-4-hydrogen");
       expect(result.thinkingLevel).toBe("medium");
       expect(result.isThinkingModel).toBe(true);
       expect(result.thinkingBudget).toBeUndefined();
       expect(result.quotaPreference).toBe("antigravity");
       expect(result.explicitQuota).toBe(true);
+    });
+
+    it("maps Hydrogen to the sonar experiment lane by default", () => {
+      const result = resolveAntigravityGemini4HydrogenBackendModel(
+        "antigravity-gemini-4-hydrogen",
+      );
+      expect(result).toBe("gemini-4-hydrogen-sonar");
+    });
+
+    it("sends the bare Hydrogen id once the registry announces it enabled", () => {
+      const result = resolveAntigravityGemini4HydrogenBackendModel(
+        "antigravity-gemini-4-hydrogen",
+        "medium",
+        true,
+      );
+      expect(result).toBe("gemini-4-hydrogen");
+    });
+
+    it("maps tier-suffixed Hydrogen ids to the lane too (tier carried via thinkingLevel)", () => {
+      expect(
+        resolveAntigravityGemini4HydrogenBackendModel(
+          "antigravity-gemini-4-hydrogen-high",
+        ),
+      ).toBe("gemini-4-hydrogen-sonar");
+    });
+
+    it("leaves direct sonar-lane strings and non-Hydrogen models untouched", () => {
+      expect(
+        resolveAntigravityGemini4HydrogenBackendModel(
+          "antigravity-gemini-4-hydrogen-sonar",
+        ),
+      ).toBeUndefined();
+      expect(
+        resolveAntigravityGemini4HydrogenBackendModel("gemini-4-carbon-high"),
+      ).toBeUndefined();
+      expect(
+        resolveAntigravityGemini4HydrogenBackendModel("gemini-3.8-flash-medium"),
+      ).toBeUndefined();
     });
 
     it("strips tier suffixes into thinkingLevel for Gemini 4 models", () => {

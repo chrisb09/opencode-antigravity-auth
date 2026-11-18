@@ -112,6 +112,14 @@ const GEMINI_38_FLASH_MODELS = {
   medium: "gemini-3.8-flash-medium",
   high: "gemini-3.8-flash-high",
 } as const;
+const GEMINI_4_HYDROGEN_REGEX =
+  /^gemini-4-hydrogen(?:-(minimal|low|medium|high))?$/i;
+/**
+ * The "sonar" experiment lane: the only servable registration of Gemini 4
+ * Hydrogen while the public bare id remains a disabled registry stub. See
+ * resolveAntigravityGemini4HydrogenBackendModel.
+ */
+const GEMINI_4_HYDROGEN_EXPERIMENT_MODEL = "gemini-4-hydrogen-sonar";
 const GEMINI_PUBLIC_ONLY_REGEX =
   /^(?:gemini-3\.5-flash-lite(?:-(?:minimal|low|medium|high))?|gemini-flash-lite-latest)$/i;
 /**
@@ -287,6 +295,39 @@ export function resolveAntigravityGemini38FlashBackendModel(
     return undefined;
   }
   return GEMINI_38_FLASH_MODELS[level];
+}
+
+/**
+ * Gemini 4 Hydrogen backend-id resolution. The public `gemini-4-hydrogen` id
+ * is still a disabled registry stub (registered as "-disabled", 404 on
+ * generation), while Google's "sonar" experiment lane already serves
+ * `gemini-4-hydrogen-sonar` on consumer accounts ("sonar" is the internal
+ * codename of an Antigravity experiment around experimental monitors — see
+ * the catalog entry in plugin/config/models.ts; verified live 2026-11-18/19).
+ *
+ * Requests for Hydrogen are rewritten to the experiment-lane id until the
+ * backend's model registry announces the bare public id as enabled. The tier
+ * suffix, if any, is carried via thinkingLevel — the backend serves a single
+ * Hydrogen id, bare or experiment-lane.
+ *
+ * @param model requested catalog id (with optional antigravity- quota prefix)
+ * @param thinkingLevel tier derived from the request (informational only here)
+ * @param hasEnabledPublicModel true when the live model registry lists
+ *   `gemini-4-hydrogen` enabled — send the bare id verbatim instead of the lane
+ */
+export function resolveAntigravityGemini4HydrogenBackendModel(
+  model: string,
+  thinkingLevel?: string,
+  hasEnabledPublicModel = false,
+): string | undefined {
+  void thinkingLevel;
+  const modelWithoutQuota = model.replace(QUOTA_PREFIX_REGEX, "");
+  if (!GEMINI_4_HYDROGEN_REGEX.test(modelWithoutQuota)) {
+    return undefined;
+  }
+  return hasEnabledPublicModel
+    ? "gemini-4-hydrogen"
+    : GEMINI_4_HYDROGEN_EXPERIMENT_MODEL;
 }
 
 export function getDefaultGemini3ThinkingLevel(model: string): string {

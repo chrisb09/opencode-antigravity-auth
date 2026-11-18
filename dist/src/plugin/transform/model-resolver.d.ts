@@ -75,6 +75,25 @@ export declare function resolveAntigravityGemini37FlashBackendModel(model: strin
  * Medium is the default tier, matching agy 1.5.7's shipped default.
  */
 export declare function resolveAntigravityGemini38FlashBackendModel(model: string, thinkingLevel?: string): string | undefined;
+/**
+ * Gemini 4 Hydrogen backend-id resolution. The public `gemini-4-hydrogen` id
+ * is still a disabled registry stub (registered as "-disabled", 404 on
+ * generation), while Google's "sonar" experiment lane already serves
+ * `gemini-4-hydrogen-sonar` on consumer accounts ("sonar" is the internal
+ * codename of an Antigravity experiment around experimental monitors — see
+ * the catalog entry in plugin/config/models.ts; verified live 2026-11-18/19).
+ *
+ * Requests for Hydrogen are rewritten to the experiment-lane id until the
+ * backend's model registry announces the bare public id as enabled. The tier
+ * suffix, if any, is carried via thinkingLevel — the backend serves a single
+ * Hydrogen id, bare or experiment-lane.
+ *
+ * @param model requested catalog id (with optional antigravity- quota prefix)
+ * @param thinkingLevel tier derived from the request (informational only here)
+ * @param hasEnabledPublicModel true when the live model registry lists
+ *   `gemini-4-hydrogen` enabled — send the bare id verbatim instead of the lane
+ */
+export declare function resolveAntigravityGemini4HydrogenBackendModel(model: string, thinkingLevel?: string, hasEnabledPublicModel?: boolean): string | undefined;
 export declare function getDefaultGemini3ThinkingLevel(model: string): string;
 /** Models released on the public Gemini API without a verified Antigravity route. */
 export declare function isGeminiPublicOnlyModel(model: string): boolean;

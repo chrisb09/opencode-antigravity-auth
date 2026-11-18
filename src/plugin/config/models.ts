@@ -105,21 +105,17 @@ export const OPENCODE_MODEL_DEFINITIONS: OpencodeModelDefinitions = {
       max: { thinkingConfig: { thinkingBudget: 32768 } },
     },
   },
-  "antigravity-gemini-4-hydrogen-sonar": {
-    // Unadvertised Gemini 4 row that already serves on consumer accounts
-    // (verified live 2026-11-18 and 2026-11-19: ~1.4-4.6s TTFB while 3.8
-    // Flash was heavily queued). "sonar" is not a model edition but the
-    // internal name of an Antigravity experiment: sharedModelExperiments
-    // defines a "sonar" experiment ("allow-experimental-monitors" +
-    // "default-sonar-monitors-config", a textproto monitor profile), the
-    // config surface carries sonar-active-tags/sonar-monitors-config keys,
-    // and mainstream rows (claude-4.6, gemini-3.8-flash-high, gemini-2.5-pro)
-    // embed modelExperimentIds: ["sonar"]. This registry entry is Gemini 4
-    // Hydrogen's separately-servable experiment-lane row (the public
-    // gemini-4-hydrogen id remains a disabled 404 stub; carbon/argon/neon
-    // have no -sonar lane). Registry row has no displayName. Accepts
-    // uppercase thinkingLevel strings like the Gemini 3 line.
-    name: "Gemini 4 Hydrogen Sonar (Antigravity)",
+  "antigravity-gemini-4-hydrogen": {
+    // Public-facing Gemini 4 Hydrogen entry. The backend does not yet serve
+    // the bare id (a "-disabled" registry stub, 404 on generate); requests
+    // are rewritten to the servable "sonar" experiment-lane id
+    // gemini-4-hydrogen-sonar — see resolveAntigravityGemini4HydrogenBackend-
+    // Model for what "sonar" is. The rewrite is registry-aware: once the
+    // registry lists the bare id enabled (e.g. at public launch), it is sent
+    // verbatim. Live on the lane since 2026-11-18 (~1.4-4.6s TTFB while 3.8
+    // Flash was heavily queued). Accepts uppercase thinkingLevel strings
+    // like the Gemini 3 line.
+    name: "Gemini 4 Hydrogen (Antigravity)",
     limit: { context: 1048576, output: 65536 },
     modalities: DEFAULT_MODALITIES,
     variants: {
@@ -271,8 +267,12 @@ export function modelsFromAntigravityAvailableModels(
     // Skip backend stubs: rows flagged disabled are UI placeholders backed by
     // no servable model id (verified 2026-11-18: "gemini-4-<element>-disabled"
     // rows return 404 on generation while listed), and internal helper models
-    // power IDE features only.
+    // power IDE features only. "-sonar"-suffixed rows are experiment-lane
+    // duplicates of their parent model (the parent id is canonically mapped
+    // to the lane by the resolver), so the lane row itself needs no catalog
+    // entry.
     if (entry.disabled === true || entry.isInternal === true) continue;
+    if (/-sonar$/i.test(sourceId)) continue;
     const modelId = antigravityModelIdFromEntry(sourceId, entry);
     if (!modelId) continue;
 
