@@ -1,29 +1,11 @@
-# Antigravity + Gemini CLI OAuth Plugin for Opencode
+# Antigravity Auth for OpenCode
 
-> **Fork Enhancements & Fixes:**
-> - **Gemini 3.8 Flash & 3.7 Flash Support:** Adds full support for `gemini-3.8-flash` / `antigravity-gemini-3.8-flash` and `gemini-3.7-flash` / `antigravity-gemini-3.7-flash`, automatically resolving thinking levels (`low`, `medium`, `high`) to the Antigravity CLI (`agy`) tier-specific backend model IDs.
-> - **AGY Protocol & Project Discovery Fix:** Fixed `loadCodeAssist` and `onboardUser` metadata payload (rejects invalid `platform` field that broke managed project discovery and caused 400 errors) and updated consumer fallback project to `default-cli-project`.
-> - **Official CLI User-Agent:** Sends the official Antigravity CLI User-Agent to prevent 404 errors on newer models gated behind CLI client identification.
-> - **Direct GitHub Install:** Tracks pre-built `dist/` artifacts so you can install and use this fork directly via GitHub without a separate build step (e.g. `"github:chrisb09/opencode-antigravity-auth"`).
-
-[![npm version](https://img.shields.io/npm/v/opencode-antigravity-auth.svg)](https://www.npmjs.com/package/opencode-antigravity-auth)
-[![npm beta](https://img.shields.io/npm/v/opencode-antigravity-auth/beta.svg?label=beta)](https://www.npmjs.com/package/opencode-antigravity-auth)
-[![npm downloads](https://img.shields.io/npm/dw/opencode-antigravity-auth.svg)](https://www.npmjs.com/package/opencode-antigravity-auth)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![X (Twitter)](https://img.shields.io/badge/X-@dopesalmon-000000?style=flat&logo=x)](https://x.com/dopesalmon)
+[![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](package.json)
 
-Enable Opencode to authenticate against **Antigravity** (Google's IDE) via OAuth so you can use Antigravity rate limits and access models like `gemini-3.1-pro` and `claude-opus-4-6-thinking` with your Google credentials.
+Google OAuth for **Antigravity** (Google's agentic IDE) and the legacy Gemini CLI, so OpenCode can use your own Google plan's quota and model catalog — including **Gemini 4 Hydrogen**, **Gemini 3.8 Flash**, **Gemini 3 Flash** and **Claude** — with multi-account rotation.
 
-## What You Get
-
-- **Claude Opus 4.6, Sonnet 4.6** and **Gemini 3.1 Pro/Flash** via Google OAuth
-- **Multi-account support** — add multiple Google accounts, auto-rotates when rate-limited
-- **Modern Gemini API support** — use Antigravity SDK-style API keys / Cloud Projects as Gemini backups or opt-in primary routing
-- **Legacy Gemini CLI quota support** — still available for compatibility and quota fallback
-- **Thinking models** — extended thinking for Claude and Gemini 3 with configurable budgets
-- **Google Search grounding** — enable web search for Gemini models (auto or always-on)
-- **Auto-recovery** — handles session errors and tool failures automatically
-- **Plugin compatible** — works alongside other OpenCode plugins (oh-my-opencode, dcp, etc.)
+> **Fork notice** — this is [@chrisb09](https://github.com/chrisb09)'s fork of [NoeFabris/opencode-antigravity-auth](https://github.com/NoeFabris/opencode-antigravity-auth). It tracks the live `agy` (Antigravity CLI) wire protocol and the backend's current request gates. See [Fork differences](#fork-differences). Pre-built `dist/` artifacts are committed, so the fork works directly from GitHub with no build step.
 
 ---
 
@@ -31,80 +13,100 @@ Enable Opencode to authenticate against **Antigravity** (Google's IDE) via OAuth
 <summary><b>⚠️ Terms of Service Warning — Read Before Installing</b></summary>
 
 > [!CAUTION]
-> Using this plugin (and any proxy for Antigravity) violates Google's Terms of Service. A number of users have reported their Google accounts being **banned** or **shadow-banned** (restricted access without explicit notification).
+> Using this plugin (and any proxy for Antigravity) violates Google's Terms of Service. Users have reported Google accounts being **banned** or **shadow-banned** (restricted access without notification).
 >
-> **By using this plugin, you acknowledge:**
-> - This is an unofficial tool not endorsed by Google
+> **By using this plugin you acknowledge:**
+> - This is an unofficial tool, not endorsed by Google
 > - Your account may be suspended or permanently banned
 > - You assume all risks associated with using this plugin
->
 
 </details>
 
 ---
 
-## Installation
+## What you get
 
-<details open>
-<summary><b>For Humans</b></summary>
+- **Antigravity model access** — Gemini 4 Hydrogen, Gemini 3.8 Flash, Gemini 3 Flash, plus the remaining Claude 4.6 generation
+- **Multi-account rotation** — add several Google accounts; the plugin rotates on rate limits, with per-account quota tracking
+- **Thinking levels** — `low`/`medium`/`high` for Gemini, thinking budgets for Claude, selectable per request as variants
+- **Dynamic model discovery** — models and context limits are read from the backend's own registry (`fetchAvailableModels`), with bundled definitions as fallback
+- **Google Search grounding** — `google_search` tool for Gemini models
+- **Session recovery** — automatic recovery from tool errors, empty responses and interrupted turns
+- **Gemini API key path** — optional `GEMINI_API_KEY` / Cloud Project routing for Gemini models, usable as fallback capacity or opt-in primary
+- **Works alongside other plugins** — including `@tarquinen/opencode-dcp` and `oh-my-opencode` (see [Plugin compatibility](#plugin-compatibility))
 
-**Option A: Let an LLM do it**
+## Requirements
 
-Paste this into any LLM agent (Claude Code, OpenCode, Cursor, etc.):
+- OpenCode (V1 or V2 — both supported from this checkout)
+- Node.js 20+
+- A Google account with Antigravity access (free tier works; paid tiers unlock additional models)
 
+---
+
+## Install
+
+### Option A — this fork from GitHub
+
+Add the plugin to `~/.config/opencode/opencode.json` (V1):
+
+```json
+{
+  "plugin": ["github:chrisb09/opencode-antigravity-auth"]
+}
 ```
-Install the opencode-antigravity-auth plugin and add the Antigravity model definitions to ~/.config/opencode/opencode.json by following: https://raw.githubusercontent.com/NoeFabris/opencode-antigravity-auth/dev/README.md
+
+Or use V2 — see [OpenCode V2](#opencode-v2).
+
+### Option B — local checkout
+
+```jsonc
+// V1: ~/.config/opencode/opencode.json
+{ "plugin": ["/absolute/path/to/opencode-antigravity-auth"] }
+
+// V2: ~/.config/opencode/opencode.jsonc
+{ "plugins": ["/absolute/path/to/opencode-antigravity-auth/v2"] }
 ```
 
-**Option B: Manual setup**
+### Option C — npm
 
-1. **Add the plugin** to `~/.config/opencode/opencode.json`:
+```json
+{
+  "plugin": ["opencode-antigravity-auth@latest"]
+}
+```
 
-   ```json
-   {
-     "plugin": ["opencode-antigravity-auth@latest"]
-   }
-   ```
+> npm publishes upstream `NoeFabris/opencode-antigravity-auth`, which does **not** include this fork's fixes. Use Option A or B to get them. Bleeding edge is `opencode-antigravity-auth@beta`.
 
-   > Want bleeding-edge features? Use `opencode-antigravity-auth@beta` instead.
-
-2. **Login** with your Google account:
-
-   ```bash
-   opencode auth login
-   ```
-
-3. **Models** — current OpenCode versions can load plugin models dynamically at runtime. If your OpenCode version still requires static provider config, choose one:
-   - Run `opencode auth login` → Google → OAuth with Google (Antigravity) → select **"Configure models in opencode.json"** (auto-configures all models)
-   - Or manually copy the [full configuration](#models) below
-
-4. **Use it:**
-
-   ```bash
-   opencode run "Hello" --model=google/antigravity-claude-opus-4-6-thinking --variant=max
-   ```
-
-</details>
-
-<details>
-<summary><b>For LLM Agents</b></summary>
-
-### Step-by-Step Instructions
-
-1. Edit the OpenCode configuration file at `~/.config/opencode/opencode.json`
-   
-   > **Note**: This path works on all platforms. On Windows, `~` resolves to your user home directory (e.g., `C:\Users\YourName`).
-
-2. Add the plugin to the `plugin` array
-
-3. Add the model definitions from the [Full models configuration](#models) section
-
-4. Set `provider` to `"google"` and choose a model
-
-### Verification
+### Then log in
 
 ```bash
-opencode run "Hello" --model=google/antigravity-claude-opus-4-6-thinking --variant=max
+opencode auth login
+```
+
+Choose **Google** → **OAuth with Google (Antigravity)**. The browser flow finishes automatically on `localhost`; on headless or containerized machines you can paste the redirect URL / authorization code instead.
+
+### Then run
+
+```bash
+opencode run "Hello" --model=google/gemini-3.8-flash --variant=high
+```
+
+Model IDs differ by OpenCode generation — `google/...` on V1, `antigravity/...` on V2. See [Models](#models).
+
+<details>
+<summary><b>Install with an LLM agent</b></summary>
+
+Paste into any coding agent:
+
+```
+Install the opencode-antigravity-auth plugin by following
+https://raw.githubusercontent.com/chrisb09/opencode-antigravity-auth/main/README.md
+```
+
+Then log in with `opencode auth login` and verify with:
+
+```bash
+opencode run "Hello" --model=google/gemini-3.8-flash
 ```
 
 </details>
@@ -113,16 +115,13 @@ opencode run "Hello" --model=google/antigravity-claude-opus-4-6-thinking --varia
 
 ## OpenCode V2
 
-This package supports OpenCode V1 and V2 from the same checkout. V1 keeps using the package root and the `google/...` model namespace. V2 uses `v2/` and the `antigravity/...` namespace.
-
-### V2 plugin
+This package supports OpenCode V1 and V2 from one checkout. V1 uses the package root and the `google/...` model namespace; V2 uses `v2/` and the `antigravity/...` namespace.
 
 ```jsonc
+// ~/.config/opencode/opencode.jsonc
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugins": [
-    "/absolute/path/to/opencode-antigravity-auth/v2"
-  ]
+  "plugins": ["/absolute/path/to/opencode-antigravity-auth/v2"]
 }
 ```
 
@@ -137,8 +136,6 @@ Add the package root to `~/.config/opencode/cli.json`:
 }
 ```
 
-The V2 TUI adds:
-
 | Command | Purpose |
 | --- | --- |
 | `/antigravity` | Account menu |
@@ -148,88 +145,98 @@ The V2 TUI adds:
 | `/antigravity-verify` | Run a generation probe for one account |
 | `/antigravity-verify-all` | Run a generation probe for every account |
 
-### V2 models
-
-V2 exposes only current, verified models:
-
-- `antigravity/antigravity-gemini-3-flash`
-- `antigravity/antigravity-claude-sonnet-4-6`
-- `antigravity/antigravity-claude-opus-4-6-thinking`
-- `antigravity/gemini-2.5-flash`
-- `antigravity/gemini-3-flash-preview`
-- `antigravity/gemini-3.8-flash`
-
-Older Gemini entries (including the former `antigravity-gemini-3.8-flash` picker entry) remain resolvable as hidden aliases but are hidden from the catalog.
+`/antigravity-verify*` is the fastest way to diagnose a failing account: it makes a real request and reports the actual backend status instead of a cached quota number.
 
 ---
 
 ## Models
 
-### Model Reference
+### Current catalog
 
-**Default catalog** (verified against the Antigravity backend's `fetchAvailableModels` response, captured from agy 1.5.7):
+The visible catalog is deliberately small. Everything else is either discovery-provided for your account or a hidden alias (below).
 
 | Model | Variants | Context | Notes |
 |-------|----------|---------|-------|
-| `gemini-3.8-flash` | low, medium, high (medium default) | 1,048,576 | Canonical Gemini 3.8 Flash. Antigravity-first routing with Gemini CLI fallback; the Antigravity backend serves tier-suffixed ids (`gemini-3.8-flash-low/medium/high`) automatically. `gemini-flash-latest` aliases to this. |
-| `antigravity-gemini-3-flash` | minimal, low, medium, high | 1,048,576 | Gemini 3 Flash with thinking |
-| `antigravity-claude-sonnet-4-6` | — | 250,000 | Claude Sonnet 4.6 (backend reports 250k context) |
-| `antigravity-claude-opus-4-6-thinking` | low, max | 250,000 | Claude Opus 4.6 with extended thinking |
-| `gemini-2.5-flash` | — | 1,048,576 | Gemini 2.5 Flash (Gemini CLI quota; the backend maps it to Gemini 3.5 Flash-Lite) |
-| `gemini-3-flash-preview` | — | 1,048,576 | Gemini 3 Flash (preview, Gemini CLI quota) |
+| `gemini-3.8-flash` | `low`, `medium`, `high` (`medium` default) | 1,048,576 | Canonical Gemini 3.8 Flash. Antigravity-first with Gemini CLI fallback. The backend serves tier-suffixed ids (`gemini-3.8-flash-low/medium/high`) and the plugin maps them automatically. `gemini-flash-latest` aliases here. |
+| `antigravity-gemini-4-hydrogen` | `low`, `medium`, `high` (`medium` default) | 1,048,576 | Gemini 4 Hydrogen. Served today from Google's `sonar` experiment lane; the plugin switches to the bare public id automatically once the backend announces it. |
+| `antigravity-gemini-3-flash` | `minimal`, `low`, `medium`, `high` | 1,048,576 | Gemini 3 Flash with thinking |
+| `gemini-2.5-flash` | — | 1,048,576 | Gemini CLI quota (the backend maps it to Gemini 3.5 Flash-Lite) |
+| `gemini-3-flash-preview` | — | 1,048,576 | Gemini CLI quota |
 
-> **Hidden aliases (still resolve, not in the picker):**
-> - `antigravity-gemini-3.8-flash` — pins the request to Antigravity quota (no CLI fallback)
-> - `gemini-3.8-flash-{minimal,low,medium,high}`, `gemini-flash-latest` → `gemini-3.8-flash`
-> - Older generations (`gemini-3.5-flash`, `gemini-3.5-flash-lite`, `gemini-3.6-flash`, `gemini-3.7-flash`, `antigravity-gemini-3.{5,6,7}-flash`, `gemini-2.5-pro`, `gemini-3-pro-preview`, `gemini-3.1-pro`, …) keep resolving for existing configs but are pruned from the default catalog.
+> **Model discovery** — on by default. Any enabled model in your account's backend registry is added automatically, with the backend's own context/output limits, e.g. `gpt-oss-120b-medium` for accounts that have it. Disabled placeholder rows and internal helper models are filtered out.
 
-**Antigravity SDK / Gemini API projects** (API-key backed; used by API-key auth, or as OAuth fallback when configured):
+### Hidden and prepared models
 
-The official Antigravity SDK uses `GEMINI_API_KEY` for local Gemini access. This plugin now supports that path directly for Gemini models while keeping OAuth accounts for Antigravity and Claude.
+These are routable when requested explicitly, but hidden from the default picker:
 
-> **Routing Behavior:**
-> - **OAuth Antigravity-first (default):** Gemini models use Antigravity quota across OAuth accounts.
-> - **Antigravity SDK / Gemini API:** API-key auth, `GEMINI_API_KEY`, or configured `agy_sdk.cloud_projects` route Gemini requests through the public Gemini API.
-> - **Legacy CLI-first (`cli_first: true`):** Gemini models use the legacy Gemini CLI quota first.
-> - When OAuth quota pools are exhausted, configured `agy_sdk.cloud_projects` are used as backup capacity before failing if `agy_sdk.enabled: true`, `agy_sdk.api_key_fallback: true`, and usable API-key credentials are present.
-> - Claude and image models always use Antigravity.
-> Model names are automatically transformed for the target API (e.g., `antigravity-gemini-3-flash` → `gemini-3-flash-preview` for CLI).
+| Id | Status | Why |
+|----|--------|-----|
+| `antigravity-claude-sonnet-4-6` | Deprecated | Hidden from the picker; still fully served. The 4.6 generation is being rotated out. |
+| `antigravity-claude-opus-4-6-thinking` | Deprecated | Same, with `low`/`max` thinking budgets. |
+| `antigravity-gemini-4-carbon`, `-argon`, `-neon` | Prepared | Announced by the backend only as disabled placeholders. They route the moment your account can serve them. |
+| `antigravity-claude-sonnet-5-5`, `antigravity-claude-opus-5-5-thinking` | Prepared | Not in the current registry. Ready for paid accounts / the 5.5 rollout. |
+| `antigravity-gemini-4-hydrogen-sonar` | Compat alias | Direct reference to the experiment-lane id behind `antigravity-gemini-4-hydrogen`. |
+| `antigravity-gemini-3.8-flash` | Compat alias | Pins the request to Antigravity quota (no Gemini CLI fallback). |
+| `gemini-3.8-flash-{minimal,low,medium,high}`, `gemini-flash-latest` | Aliases | `minimal` maps to `low`; the rest map to the canonical entry. |
+| `gemini-3.5-flash`, `gemini-3.5-flash-lite`, `gemini-3.6-flash`, `gemini-3.7-flash`, `gemini-2.5-pro`, `gemini-3-pro-preview`, `gemini-3.1-pro`, … | Legacy | Existing configs keep resolving; pruned from the picker. |
 
-**Using variants:**
+### Choosing thinking levels
+
 ```bash
-opencode run "Hello" --model=google/antigravity-claude-opus-4-6-thinking --variant=max
+opencode run "Hello" --model=google/gemini-3.8-flash --variant=high
 ```
 
-For details on variant configuration and thinking levels, see [docs/MODEL-VARIANTS.md](docs/MODEL-VARIANTS.md).
+- **Gemini 3.x / 4.x** use `thinkingLevel` strings. `minimal` exists only where the backend advertises it (Gemini 3 Flash); 3.8 Flash and Gemini 4 use `low`/`medium`/`high`.
+- **Claude thinking models** use numeric budgets: `low` = 8,192 and `max` = 32,768 tokens.
 
-<details>
-<summary><b>Full models configuration (copy-paste ready)</b></summary>
+Details: [docs/MODEL-VARIANTS.md](docs/MODEL-VARIANTS.md).
 
-Add this to your `~/.config/opencode/opencode.json`:
+### Routing behavior
+
+- **Antigravity-first (default)** — Gemini models consume Antigravity quota across your OAuth accounts.
+- **`antigravity-` prefix** — pins the request to Antigravity quota, disabling the Gemini CLI fallback.
+- **`cli_first: true`** — legacy mode: Gemini models use Gemini CLI quota first.
+- **`agy_sdk`** — API keys / Cloud Projects route Gemini through the public Gemini API; they can also serve as fallback capacity when OAuth quotas are exhausted.
+- **Claude and image models** always use Antigravity.
+- Model names are rewritten per target API automatically (e.g. `antigravity-gemini-3-flash` → `gemini-3-flash-preview` for the CLI).
+
+### Full model configuration (V1, copy-paste)
+
+Only needed if your OpenCode version does not load plugin models dynamically. `opencode auth login` → **Configure models in opencode.json** can also write this for you.
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-antigravity-auth@latest"],
+  "plugin": ["github:chrisb09/opencode-antigravity-auth"],
   "provider": {
     "google": {
       "models": {
+        "gemini-3.8-flash": {
+          "name": "Gemini 3.8 Flash",
+          "limit": { "context": 1048576, "output": 65536 },
+          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
+          "variants": {
+            "low": { "thinkingLevel": "low" },
+            "medium": { "thinkingLevel": "medium" },
+            "high": { "thinkingLevel": "high" }
+          }
+        },
+        "antigravity-gemini-4-hydrogen": {
+          "name": "Gemini 4 Hydrogen (Antigravity)",
+          "limit": { "context": 1048576, "output": 65536 },
+          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
+          "variants": {
+            "low": { "thinkingLevel": "low" },
+            "medium": { "thinkingLevel": "medium" },
+            "high": { "thinkingLevel": "high" }
+          }
+        },
         "antigravity-gemini-3-flash": {
           "name": "Gemini 3 Flash (Antigravity)",
           "limit": { "context": 1048576, "output": 65536 },
           "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
           "variants": {
             "minimal": { "thinkingLevel": "minimal" },
-            "low": { "thinkingLevel": "low" },
-            "medium": { "thinkingLevel": "medium" },
-            "high": { "thinkingLevel": "high" }
-          }
-        },
-        "gemini-3.8-flash": {
-          "name": "Gemini 3.8 Flash",
-          "limit": { "context": 1048576, "output": 65536 },
-          "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] },
-          "variants": {
             "low": { "thinkingLevel": "low" },
             "medium": { "thinkingLevel": "medium" },
             "high": { "thinkingLevel": "high" }
@@ -265,380 +272,114 @@ Add this to your `~/.config/opencode/opencode.json`:
 }
 ```
 
-> **Backward Compatibility:** Legacy model names with `antigravity-` prefix (e.g., `antigravity-gemini-3-flash`) still work. The plugin automatically handles model name transformation for both Antigravity and Gemini CLI APIs.
-
-</details>
-
 ---
 
-## Multi-Account Setup
+## Multi-account setup
 
-Add multiple Google accounts for a higher combined quota. The plugin automatically rotates between accounts when one is rate-limited.
+Run `opencode auth login` again to add more Google accounts. The plugin rotates between them when one is rate-limited.
 
-```bash
-opencode auth login  # Run again to add more accounts
-```
+The login menu also offers:
 
-**Account management options (via `opencode auth login`):**
-- **Configure models** — Auto-configure all plugin models in opencode.json
-- **Check quotas** — View remaining API quota for each account
-- **Manage accounts** — Enable/disable specific accounts for rotation
+| Option | Purpose |
+| --- | --- |
+| **Add account** | Start another Google OAuth login |
+| **Check quotas** | Show remaining quota per account |
+| **Verify one account** / **Verify all accounts** | Make a real request per account and report the backend status |
+| **Configure models in opencode.json** | Write the model definitions into `opencode.json` |
+| *Select an account* | Switch to it, or open its details to enable/disable it or remove it |
 
-For details on load balancing, dual quota pools, and account storage, see [docs/MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md).
+Quotas are split by model group: **Gemini models** (5-hour and weekly windows) and **Claude/GPT models** (5-hour and weekly windows). Exhausting one group leaves the other usable.
 
----
-
-## Troubleshooting
-
-> **Quick Reset**: Most issues can be resolved by deleting `~/.config/opencode/antigravity-accounts.json` and running `opencode auth login` again.
-
-### Configuration Path (All Platforms)
-
-OpenCode uses `~/.config/opencode/` on **all platforms** including Windows.
-
-| File | Path |
-|------|------|
-| Main config | `~/.config/opencode/opencode.json` |
-| Accounts | `~/.config/opencode/antigravity-accounts.json` |
-| Plugin config | `~/.config/opencode/antigravity.json` |
-| Debug logs | `~/.config/opencode/antigravity-logs/` |
-
-> **Windows users**: `~` resolves to your user home directory (e.g., `C:\Users\YourName`). Do NOT use `%APPDATA%`.
-
-> **Custom path**: Set `OPENCODE_CONFIG_DIR` environment variable to use a custom location.
-
-> **Windows migration**: If upgrading from plugin v1.3.x or earlier, the plugin will automatically find your existing config in `%APPDATA%\opencode\` and use it. New installations use `~/.config/opencode/`.
-
----
-
-### Multi-Account Auth Issues
-
-If you encounter authentication issues with multiple accounts:
-
-1. Delete the accounts file:
-   ```bash
-   rm ~/.config/opencode/antigravity-accounts.json
-   ```
-2. Re-authenticate:
-   ```bash
-   opencode auth login
-   ```
-
----
-
-### 403 Permission Denied (`rising-fact-p41fc`)
-
-**Error:**
-```
-Permission 'cloudaicompanion.companions.generateChat' denied on resource 
-'//cloudaicompanion.googleapis.com/projects/rising-fact-p41fc/locations/global'
-```
-
-**Cause:** Plugin falls back to a default project ID when no valid project is found. This works for Antigravity but fails for Gemini CLI models.
-
-**Solution:**
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create or select a project
-3. Enable the **Gemini for Google Cloud API** (`cloudaicompanion.googleapis.com`)
-4. Add `projectId` to your accounts file:
-   ```json
-   {
-     "accounts": [
-       {
-         "email": "your@email.com",
-         "refreshToken": "...",
-         "projectId": "your-project-id"
-       }
-     ]
-   }
-   ```
-
-> **Note**: Do this for each account in a multi-account setup.
-
----
-
-### Gemini Model Not Found
-
-Add this to your `google` provider config:
-
-```json
-{
-  "provider": {
-    "google": {
-      "npm": "@ai-sdk/google",
-      "models": { ... }
-    }
-  }
-}
-```
-
----
-
-### Gemini 3 Models 400 Error ("Unknown name 'parameters'")
-
-**Error:**
-```
-Invalid JSON payload received. Unknown name "parameters" at 'request.tools[0]'
-```
-
-**Causes:**
-- Tool schema incompatibility with Gemini's strict protobuf validation
-- MCP servers with malformed schemas
-- Plugin version regression
-
-**Solutions:**
-1. **Update to latest beta:**
-   ```json
-   { "plugin": ["opencode-antigravity-auth@beta"] }
-   ```
-
-2. **Disable MCP servers** one-by-one to find the problematic one
-
-3. **Add npm override:**
-   ```json
-   { "provider": { "google": { "npm": "@ai-sdk/google" } } }
-   ```
-
----
-
-### MCP Servers Causing Errors
-
-Some MCP servers have schemas incompatible with Antigravity's strict JSON format.
-
-**Common symptom:**
-```bash
-Invalid function name must start with a letter or underscore
-```
-
-Sometimes it shows up as:
-```bash
-GenerateContentRequest.tools[0].function_declarations[12].name: Invalid function name must start with a letter or underscore
-```
-
-This usually means an MCP tool name starts with a number (for example, a 1mcp key like `1mcp_*`). Rename the MCP key to start with a letter (e.g., `gw`) or disable that MCP entry for Antigravity models.
-
-**Diagnosis:**
-1. Disable all MCP servers in your config
-2. Enable one-by-one until error reappears
-3. Report the specific MCP in a [GitHub issue](https://github.com/NoeFabris/opencode-antigravity-auth/issues)
-
----
-
-### "All Accounts Rate-Limited" (But Quota Available)
-
-**Cause:** Cascade bug in `clearExpiredRateLimits()` in hybrid mode (fixed in recent beta).
-
-**Solutions:**
-1. Update to latest beta version
-2. If persists, delete accounts file and re-authenticate
-3. Try switching `account_selection_strategy` to `"sticky"` in `antigravity.json`
-
----
-
-### Session Recovery
-
-If you encounter errors during a session:
-1. Type `continue` to trigger the recovery mechanism
-2. If blocked, use `/undo` to revert to pre-error state
-3. Retry the operation
-
----
-
-### Using with Oh-My-OpenCode
-
-**Important:** Disable the built-in Google auth to prevent conflicts:
-
-```json
-// ~/.config/opencode/oh-my-opencode.json
-{
-  "google_auth": false,
-  "agents": {
-    "frontend-ui-ux-engineer": { "model": "google/antigravity-gemini-3-pro" },
-    "document-writer": { "model": "google/antigravity-gemini-3-flash" }
-  }
-}
-```
-
----
-
-### Infinite `.tmp` Files Created
-
-**Cause:** When account is rate-limited and plugin retries infinitely, it creates many temp files.
-
-**Workaround:**
-1. Stop OpenCode
-2. Clean up: `rm ~/.config/opencode/*.tmp`
-3. Add more accounts or wait for rate limit to expire
-
----
-
-### OAuth Callback Issues
-
-<details>
-<summary><b>Safari OAuth Callback Fails (macOS)</b></summary>
-
-**Symptoms:**
-- "fail to authorize" after successful Google login
-- Safari shows "Safari can't open the page"
-
-**Cause:** Safari's "HTTPS-Only Mode" blocks `http://localhost` callback.
-
-**Solutions:**
-
-1. **Use Chrome or Firefox** (easiest):
-   Copy the OAuth URL and paste into a different browser.
-
-2. **Disable HTTPS-Only Mode temporarily:**
-   - Safari > Settings (⌘,) > Privacy
-   - Uncheck "Enable HTTPS-Only Mode"
-   - Run `opencode auth login`
-   - Re-enable after authentication
-
-</details>
-
-<details>
-<summary><b>Port Conflict (Address Already in Use)</b></summary>
-
-**macOS / Linux:**
-```bash
-# Find process using the port
-lsof -i :51121
-
-# Kill if stale
-kill -9 <PID>
-
-# Retry
-opencode auth login
-```
-
-**Windows (PowerShell):**
-```powershell
-netstat -ano | findstr :51121
-taskkill /PID <PID> /F
-opencode auth login
-```
-
-</details>
-
-<details>
-<summary><b>Docker / WSL2 / Remote Development</b></summary>
-
-OAuth callback requires browser to reach `localhost` on the machine running OpenCode.
-
-**WSL2:**
-- Use VS Code's port forwarding, or
-- Configure Windows → WSL port forwarding
-
-**SSH / Remote:**
-```bash
-ssh -L 51121:localhost:51121 user@remote
-```
-
-**Docker / Containers:**
-- OAuth with localhost redirect doesn't work in containers
-- Wait 30s for manual URL flow, or use SSH port forwarding
-
-</details>
-
----
-
-### Configuration Key Typo: `plugin` not `plugins`
-
-The correct key is `plugin` (singular):
-
-```json
-{
-  "plugin": ["opencode-antigravity-auth@beta"]
-}
-```
-
-**Not** `"plugins"` (will cause "Unrecognized key" error).
-
----
-
-### Migrating Accounts Between Machines
-
-When copying `antigravity-accounts.json` to a new machine:
-1. Ensure the plugin is installed: `"plugin": ["opencode-antigravity-auth@beta"]`
-2. Copy `~/.config/opencode/antigravity-accounts.json`
-3. If you get "API key missing" error, the refresh token may be invalid — re-authenticate
-
-## Known Plugin Interactions
-For details on load balancing, dual quota pools, and account storage, see [docs/MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md).
-
----
-
-## Plugin Compatibility
-
-### @tarquinen/opencode-dcp
-
-DCP creates synthetic assistant messages that lack thinking blocks. **List this plugin BEFORE DCP:**
-
-```json
-{
-  "plugin": [
-    "opencode-antigravity-auth@latest",
-    "@tarquinen/opencode-dcp@latest"
-  ]
-}
-```
-
-### oh-my-opencode
-
-Disable built-in auth and override agent models in `oh-my-opencode.json`:
-
-```json
-{
-  "google_auth": false,
-  "agents": {
-    "frontend-ui-ux-engineer": { "model": "google/antigravity-gemini-3-pro" },
-    "document-writer": { "model": "google/antigravity-gemini-3-flash" },
-    "multimodal-looker": { "model": "google/antigravity-gemini-3-flash" }
-  }
-}
-```
-
-> **Tip:** When spawning parallel subagents, enable `pid_offset_enabled: true` in `antigravity.json` to distribute sessions across accounts.
-
-### Plugins you don't need
-
-- **gemini-auth plugins** — Not needed. This plugin handles all Google OAuth.
+For load balancing, quota pools and account storage, see [docs/MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md).
 
 ---
 
 ## Configuration
 
-Create `~/.config/opencode/antigravity.json` for optional settings:
+Optional settings live in `~/.config/opencode/antigravity.json`:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/NoeFabris/opencode-antigravity-auth/main/assets/antigravity.schema.json"
+  "$schema": "https://raw.githubusercontent.com/chrisb09/opencode-antigravity-auth/main/assets/antigravity.schema.json"
 }
 ```
 
-Most users don't need to configure anything — defaults work well.
+Defaults work for most setups.
 
-### Model Behavior
+### Model behavior
 
 | Option | Default | What it does |
-|--------|---------|--------------
-| `keep_thinking` | `false` | Preserve Claude's thinking across turns. **Warning:** enabling may degrade model stability. |
+|--------|---------|--------------|
+| `keep_thinking` | `false` | Preserve Claude thinking across turns. May reduce model stability. |
 | `session_recovery` | `true` | Auto-recover from tool errors |
-| `cli_first` | `false` | Route Gemini models to the legacy Gemini CLI path first (Claude and image models stay on Antigravity). |
-| `agy_sdk.enabled` | `true` | Enables the Antigravity SDK / Gemini API key route for Gemini requests. |
-| `agy_sdk.prefer_for_gemini` | `false` | When API keys are configured, use the Gemini API route before OAuth-backed Antigravity for Gemini models. |
-| `agy_sdk.api_key_fallback` | `true` | Use configured API keys / Cloud Projects when OAuth Antigravity and legacy Gemini CLI quotas are unavailable. |
-| `model_discovery.enabled` | `true` | Load provider models dynamically from Gemini API / Antigravity model APIs, with bundled static definitions as fallback. |
+| `auto_resume` | `true` | Recover interrupted turns automatically |
+| `cli_first` | `false` | Route Gemini models through legacy Gemini CLI quota first |
+| `quota_fallback` | `false` | Allow falling back between quota pools on exhaustion |
+| `agy_sdk.enabled` | `true` | Enable the Gemini API key / Cloud Project route for Gemini |
+| `agy_sdk.prefer_for_gemini` | `false` | Prefer API keys over OAuth for Gemini models |
+| `agy_sdk.api_key_fallback` | `true` | Use API keys when OAuth quotas are unavailable |
+| `model_discovery.enabled` | `true` | Load models and limits from the backend registry |
+| `claude_tool_hardening` | `true` | Normalize Claude tool schemas/ids |
 
-### Antigravity SDK / Gemini API keys
+### Account rotation
 
-The official Antigravity SDK quickstart uses `GEMINI_API_KEY`. You can provide one key via environment variable:
+| Option | Default | What it does |
+|--------|---------|--------------|
+| `account_selection_strategy` | `"hybrid"` | `hybrid` = health + token bucket + LRU freshness; `sticky` = same account until rate-limited (best prompt cache); `round-robin` = rotate on every request |
+| `pid_offset_enabled` | `false` | Distribute parallel sessions/agents across different starting accounts |
+| `switch_on_first_rate_limit` | `true` | Switch accounts on the first 429 instead of retrying the same account |
+
+| Your setup | Recommended |
+|------------|-------------|
+| 1 account | `"account_selection_strategy": "sticky"` |
+| 2–5 accounts | Default (`hybrid`) |
+| 5+ accounts | `"account_selection_strategy": "round-robin"` |
+| Parallel agents | Add `"pid_offset_enabled": true` |
+
+### Quota protection
+
+| Option | Default | What it does |
+|--------|---------|--------------|
+| `soft_quota_threshold_percent` | `90` | Skip an account above this usage. Set `100` to disable. |
+| `quota_refresh_interval_minutes` | `15` | Refresh quota cache after successful requests when older than this. `0` disables. |
+| `soft_quota_cache_ttl_minutes` | `"auto"` | Cache freshness; `"auto"` = max(2 × refresh interval, 10 min). Unknown/stale cache is allowed (fail-open). |
+
+### Rate-limit scheduling
+
+| Option | Default | What it does |
+|--------|---------|--------------|
+| `scheduling_mode` | `"cache_first"` | `cache_first` = wait for the same account (preserves prompt cache); `balance` = switch immediately; `performance_first` = round-robin |
+| `max_cache_first_wait_seconds` | `60` | Max wait in `cache_first` before switching |
+| `max_rate_limit_wait_seconds` | `300` | Give up when the earliest reset is further away than this |
+| `failure_ttl_seconds` | `3600` | Expire old failure counts |
+
+### App behavior
+
+| Option | Default | What it does |
+|--------|---------|--------------|
+| `quiet_mode` | `false` | Hide toast notifications |
+| `toast_scope` | `"root_only"` | `root_only` or `all` sessions |
+| `debug` | `false` | File logging in `~/.config/opencode/antigravity-logs/` |
+| `debug_tui` | `false` | Show debug output in the TUI log panel |
+| `auto_update` | `true` | Auto-update the plugin |
+
+### Environment variables
 
 ```bash
-GEMINI_API_KEY=your-key opencode run "Hello" --model=google/gemini-3-pro
+OPENCODE_CONFIG_DIR=/path/to/config        # custom config directory
+OPENCODE_ANTIGRAVITY_DEBUG=1               # debug file logging (2 = verbose)
+OPENCODE_ANTIGRAVITY_DEBUG_TUI=1           # TUI log panel
+OPENCODE_ANTIGRAVITY_LOG_DIR=/path         # custom log directory
+OPENCODE_ANTIGRAVITY_KEEP_THINKING=1       # override keep_thinking
+OPENCODE_ANTIGRAVITY_QUIET=1               # override quiet_mode
+OPENCODE_ANTIGRAVITY_TOAST_SCOPE=all       # override toast_scope
+OPENCODE_ANTIGRAVITY_SCHEDULING_MODE=balance
+OPENCODE_ANTIGRAVITY_ACCOUNT_SELECTION_STRATEGY=sticky
+OPENCODE_ANTIGRAVITY_PID_OFFSET_ENABLED=1
+GEMINI_API_KEY=your-key                    # Gemini API key route
 ```
 
-For multiple Cloud Projects / API keys, add them to `~/.config/opencode/antigravity.json`:
+### Gemini API keys / Cloud Projects
 
 ```json
 {
@@ -653,86 +394,188 @@ For multiple Cloud Projects / API keys, add them to `~/.config/opencode/antigrav
 }
 ```
 
-Keep this file private: API keys are stored in your local OpenCode config and are sent to Gemini with the `x-goog-api-key` header, never in the request URL. Do not commit `antigravity.json` with real keys.
+Keys stay local and are sent as the `x-goog-api-key` header, never in the URL. Do not commit `antigravity.json` with real keys.
 
-Set `prefer_for_gemini: true` if you want Gemini models to use the newer Gemini API path before OAuth-backed Antigravity. OAuth multi-account rotation remains active for Antigravity/Claude and as fallback when `prefer_for_gemini` keys are unavailable. `cli_first` remains the legacy Gemini CLI compatibility mode.
-
-### Account Rotation
-
-| Your Setup | Recommended Config |
-|------------|-------------------|
-| **1 account** | `"account_selection_strategy": "sticky"` |
-| **2-5 accounts** | Default (`"hybrid"`) works great |
-| **5+ accounts** | `"account_selection_strategy": "round-robin"` |
-| **Parallel agents** | Add `"pid_offset_enabled": true` |
-
-### Quota Protection
-
-| Option | Default | What it does |
-|--------|---------|--------------|
-| `soft_quota_threshold_percent` | `90` | Skip account when quota usage exceeds this percentage. Prevents Google from penalizing accounts that fully exhaust quota. Set to `100` to disable. |
-| `quota_refresh_interval_minutes` | `15` | Background quota refresh interval. After successful API requests, refreshes quota cache if older than this interval. Set to `0` to disable. |
-| `soft_quota_cache_ttl_minutes` | `"auto"` | How long quota cache is considered fresh. `"auto"` = max(2 × refresh interval, 10 minutes). Set a number (1-120) for fixed TTL. |
-
-> **How it works**: Quota cache is refreshed automatically after API requests (when older than `quota_refresh_interval_minutes`) and manually via "Check quotas" in `opencode auth login`. The threshold check uses `soft_quota_cache_ttl_minutes` to determine cache freshness - if cache is older, the account is considered "unknown" and allowed (fail-open). When ALL accounts exceed the threshold, the plugin waits for the earliest quota reset time (like rate limit behavior). If wait time exceeds `max_rate_limit_wait_seconds`, it errors immediately.
-
-### Rate Limit Scheduling
-
-Control how the plugin handles rate limits:
-
-| Option | Default | What it does |
-|--------|---------|--------------|
-| `scheduling_mode` | `"cache_first"` | `"cache_first"` = wait for same account (preserves prompt cache), `"balance"` = switch immediately, `"performance_first"` = round-robin |
-| `max_cache_first_wait_seconds` | `60` | Max seconds to wait in cache_first mode before switching accounts |
-| `failure_ttl_seconds` | `3600` | Reset failure count after this many seconds (prevents old failures from permanently penalizing accounts) |
-
-**When to use each mode:**
-- **cache_first** (default): Best for long conversations. Waits for the same account to recover, preserving your prompt cache.
-- **balance**: Best for quick tasks. Switches accounts immediately when rate-limited for maximum availability.
-- **performance_first**: Best for many short requests. Distributes load evenly across all accounts.
-
-### App Behavior
-
-| Option | Default | What it does |
-|--------|---------|--------------|
-| `quiet_mode` | `false` | Hide toast notifications |
-| `debug` | `false` | Enable debug file logging (`~/.config/opencode/antigravity-logs/`) |
-| `debug_tui` | `false` | Show debug logs in the TUI log panel (independent from `debug`) |
-| `auto_update` | `true` | Auto-update plugin |
-
-For all options, see [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
-
-**Environment variables:**
-```bash
-OPENCODE_CONFIG_DIR=/path/to/config opencode  # Custom config directory
-OPENCODE_ANTIGRAVITY_DEBUG=1 opencode         # Enable debug file logging
-OPENCODE_ANTIGRAVITY_DEBUG=2 opencode         # Verbose debug file logging
-OPENCODE_ANTIGRAVITY_DEBUG_TUI=1 opencode     # Enable TUI log panel debug output
-```
+For every option, see [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 
 ---
 
 ## Troubleshooting
 
-See the full [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for solutions to common issues including:
+### "Forbidden" or an instant `429 RESOURCE_EXHAUSTED`
 
-- Auth problems and token refresh
-- "Model not found" errors
-- Session recovery
-- Gemini CLI permission errors
-- Safari OAuth issues
-- Plugin compatibility
-- Migration guides
+As of **2026-11-18** the Antigravity backend gates requests from non-genuine clients and dresses the rejection up as a quota error. The plugin returns `Forbidden` because the real 429 is masked by a follow-up 403 from the enterprise endpoint (`SUBSCRIPTION_REQUIRED #3501`).
+
+Two gates are known:
+
+1. **CLI version gate** — the backend rejects stale `agy` User-Agents. The plugin pins the current one (`1.5.11`); when `agy` auto-updates, the pin must be refreshed in `src/constants.ts`.
+2. **systemInstruction content scan** — a system prompt naming a third-party agent harness ("OpenCode") is rejected instantly. The plugin sends the genuine `agy` system instruction and relocates the OpenCode prompt into the first user turn.
+
+Both are already fixed here. If you hit this pattern:
+
+- Update to the latest commit of this fork (older builds or upstream npm do not carry the fix).
+- Make sure your `agy`/plugin version pairing is current if you build locally.
+- Confirm it is not real quota: `/antigravity-quota` (V2) or **Check quotas** in `opencode auth login`.
+
+### "Model not found"
+
+If models do not appear, your OpenCode version may require static definitions:
+
+```json
+{ "provider": { "google": { "npm": "@ai-sdk/google", "models": { } } } }
+```
+
+or run **Configure models in opencode.json** from `opencode auth login`.
+
+### Model needs verification
+
+The plugin can require a one-time generation probe after a new login or a suspicious account state:
+
+```bash
+opencode auth login   # → Verify one account / Verify all accounts
+```
+
+In V2 use `/antigravity-verify` or `/antigravity-verify-all`.
+
+### Gemini 3 / 4 tool errors: `Unknown name "parameters"`
+
+Usually a schema from an MCP server that strict protobuf validation rejects. Disable MCP servers one by one, or ensure the `google` provider uses `"npm": "@ai-sdk/google"`.
+
+Related: `Invalid function name must start with a letter or underscore` means an MCP tool name starts with a digit (e.g. a `1mcp_*` key) — rename the MCP key or disable that server for Antigravity models.
+
+### "All accounts rate-limited" but quota looks available
+
+1. Re-check with **Check quotas** / `/antigravity-quota`.
+2. Delete `~/.config/opencode/antigravity-accounts.json` and run `opencode auth login` again.
+3. Try `"account_selection_strategy": "sticky"`.
+
+### OAuth callback problems
+
+<details>
+<summary><b>Safari (macOS)</b></summary>
+
+Safari's HTTPS-Only Mode blocks the `http://localhost` callback. Use Chrome/Firefox for login, or disable HTTPS-Only Mode temporarily.
+
+</details>
+
+<details>
+<summary><b>Port already in use</b></summary>
+
+```bash
+lsof -i :51121        # macOS/Linux
+netstat -ano | findstr :51121   # Windows
+```
+
+Kill the stale process and retry `opencode auth login`.
+
+</details>
+
+<details>
+<summary><b>Docker / WSL2 / SSH</b></summary>
+
+The browser must reach `localhost` on the machine running OpenCode.
+
+```bash
+ssh -L 51121:localhost:51121 user@remote
+```
+
+In containers, wait for the manual URL/code flow, or forward the port.
+
+</details>
+
+### Configuration key: `plugin` vs `plugins`
+
+V1 uses **`plugin`** (singular):
+```json
+{ "plugin": ["github:chrisb09/opencode-antigravity-auth"] }
+```
+V2 uses **`plugins`**:
+```jsonc
+{ "plugins": ["/absolute/path/to/opencode-antigravity-auth/v2"] }
+```
+Using the wrong key is the usual cause of "Unrecognized key".
+
+### Reset
+
+Most issues clear by deleting the accounts file and logging in again:
+
+```bash
+rm ~/.config/opencode/antigravity-accounts.json
+opencode auth login
+```
+
+### Config locations
+
+| File | Path |
+|------|------|
+| Main config (V1) | `~/.config/opencode/opencode.json` |
+| Main config (V2) | `~/.config/opencode/opencode.jsonc` |
+| TUI config (V2) | `~/.config/opencode/cli.json` |
+| Accounts | `~/.config/opencode/antigravity-accounts.json` |
+| Plugin config | `~/.config/opencode/antigravity.json` |
+| Debug logs | `~/.config/opencode/antigravity-logs/` |
+
+> `~/.config/opencode/` is used on **all platforms**, including Windows (`~` = your home directory). Do not use `%APPDATA%`. Set `OPENCODE_CONFIG_DIR` to override.
+
+More: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+
+---
+
+## Plugin compatibility
+
+### `@tarquinen/opencode-dcp`
+
+DCP creates synthetic assistant messages without thinking blocks. **List this plugin before DCP:**
+
+```json
+{
+  "plugin": [
+    "github:chrisb09/opencode-antigravity-auth",
+    "@tarquinen/opencode-dcp@latest"
+  ]
+}
+```
+
+### `oh-my-opencode`
+
+Disable its built-in Google auth to avoid conflicts, and point agent models at this plugin:
+
+```json
+{
+  "google_auth": false,
+  "agents": {
+    "frontend-ui-ux-engineer": { "model": "google/antigravity-gemini-3-flash" },
+    "document-writer": { "model": "google/gemini-3.8-flash" },
+    "multimodal-looker": { "model": "google/gemini-3.8-flash" }
+  }
+}
+```
+
+### Plugins you don't need
+
+- **gemini-auth plugins** — this plugin already handles Google OAuth.
+
+---
+
+## Fork differences
+
+Compared with upstream, this fork:
+
+- **Mirrors the verified `agy` wire protocol** — official CLI User-Agent (currently `1.5.11, cl=1024248524`), fixed `aicode-consumers` consumer project, `requestId`/trajectory `labels` format, uppercase `thinkingLevel`, and the genuine CLI system instruction with harness headers stripped. This is what passes the 2026-11-18 backend gates.
+- **Tracks the current model lineup** — Gemini 3.8 Flash consolidated into one canonical entry, Gemini 4 Hydrogen exposed via its servable experiment lane (registry-aware, self-switching when the public id goes live), Gemini 4 Carbon/Argon/Neon and Claude 5.5 prepared as hidden entries, Claude 4.6 deprecated but routable.
+- **Hardens model discovery** — ignores disabled placeholder rows and internal helper models; adopts backend-reported context/output limits.
+- **Supports OpenCode V2** — separate `v2/` entrypoint, `antigravity/...` namespace, TUI slash commands.
+- **Commits `dist/`** — so `github:` installs work without a build step.
 
 ---
 
 ## Documentation
 
-- [Configuration](docs/CONFIGURATION.md) — All configuration options
-- [Multi-Account](docs/MULTI-ACCOUNT.md) — Load balancing, dual quota pools, account storage
-- [Model Variants](docs/MODEL-VARIANTS.md) — Thinking budgets and variant system
-- [Troubleshooting](docs/TROUBLESHOOTING.md) — Common issues and fixes
-- [Architecture](docs/ARCHITECTURE.md) — How the plugin works
+- [Configuration](docs/CONFIGURATION.md) — all options and defaults
+- [Model Variants](docs/MODEL-VARIANTS.md) — thinking levels and variant system
+- [Multi-Account](docs/MULTI-ACCOUNT.md) — rotation, quota pools, account storage
+- [Troubleshooting](docs/TROUBLESHOOTING.md) — extended issue list
+- [Architecture](docs/ARCHITECTURE.md) — request pipeline and internals
 - [API Spec](docs/ANTIGRAVITY_API_SPEC.md) — Antigravity API reference
 
 ---
@@ -741,32 +584,30 @@ See the full [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for solutions to c
 
 - [opencode-gemini-auth](https://github.com/jenslys/opencode-gemini-auth) by [@jenslys](https://github.com/jenslys)
 - [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)
+- Upstream: [NoeFabris/opencode-antigravity-auth](https://github.com/NoeFabris/opencode-antigravity-auth)
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT. See [LICENSE](LICENSE).
 
 <details>
 <summary><b>Legal</b></summary>
 
-### Intended Use
+### Intended use
 
 - Personal / internal development only
-- Respect internal quotas and data handling policies
+- Respect quotas and data handling policies
 - Not for production services or bypassing intended limits
 
 ### Warning
 
-By using this plugin, you acknowledge:
-
-- **Terms of Service risk** — This approach may violate ToS of AI model providers
-- **Account risk** — Providers may suspend or ban accounts
+- **Terms of Service risk** — this approach may violate AI providers' ToS
+- **Account risk** — providers may suspend or ban accounts
 - **No guarantees** — APIs may change without notice
-- **Assumption of risk** — You assume all legal, financial, and technical risks
+- **Assumption of risk** — you assume all legal, financial and technical risk
 
 ### Disclaimer
 
-- Not affiliated with Google. This is an independent open-source project.
-- "Antigravity", "Gemini", "Google Cloud", and "Google" are trademarks of Google LLC.
+Not affiliated with Google. "Antigravity", "Gemini", "Google Cloud" and "Google" are trademarks of Google LLC.
 
 </details>
