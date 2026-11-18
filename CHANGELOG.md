@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Gemini 4 model line support (2026-11-18)** - The backend's `fetchAvailableModels` registry now announces the Gemini 4 line. Probed from a live agy 1.5.11 session:
+  - `gemini-4-hydrogen-sonar` - unadvertised Gemini 4 variant that already serves on consumer accounts (registry row has no display name; bare `gemini-4-hydrogen` is still a disabled stub). Added as a visible catalog entry with `low`/`medium`/`high` variants; accepts uppercase `thinkingLevel` strings like the Gemini 3 line and answered a minimal probe in ~1.4-4.6s while 3.8 Flash was heavily queued.
+  - `gemini-4-carbon` / `gemini-4-argon` / `gemini-4-hydrogen` / `gemini-4-neon` - announced only as `disabled` placeholder rows ("Unavailable", registry keys suffixed `-disabled`); the bare ids return 404 when used. Registered as **hidden prepared entries**: invisible in the picker but routable the moment the backend starts serving them (e.g. on paid accounts); model discovery additionally surfaces them automatically for accounts whose registry lists them enabled.
+  - The resolver, thinking-signature caching, and thinking-config construction now treat the Gemini 4 line like the Gemini 3 line (tier suffixes become `thinkingLevel`, UPPERCASE on the wire; tier suffix stripping; medium default until an official default is known).
+- **Prepared Claude 5.5 entries** - `antigravity-claude-sonnet-5-5` and `antigravity-claude-opus-5-5-thinking` registered as hidden prepared entries (not listed in the backend registry for current accounts; bare ids return 404). They resolve verbatim (Claude ids need no rewriting) and activate as soon as the backend serves them.
+
+### Changed
+
+- **Claude 4.6 deprecated** - In anticipation of the backend dropping the 4.6 generation, `antigravity-claude-sonnet-4-6` and `antigravity-claude-opus-4-6-thinking` are now registered with status `deprecated` (hidden from the default picker, still fully routable so existing sessions and configs keep working). The generic hidden/compat set formerly `DEPRECATED_GEMINI_MODEL_IDS` is now `HIDDEN_MODEL_IDS` and covers both deprecated and prepared ids.
+- **Model discovery hardening** - `modelsFromAntigravityAvailableModels` now skips registry rows flagged `disabled` (UI placeholder stubs that 404 on generation) and `isInternal` helper models (`chat_*`, `tab_*`), and uses the backend-reported `maxTokens`/`maxOutputTokens` as context/output limits when present instead of per-family guesses. Discovered Gemini 4 models infer `low`/`medium`/`high` thinkingLevel variants.
+
 ### Fixed
 
 - **Antigravity backend request gates (2026-11-18)** - The backend started rejecting the plugin's generate requests with a fake `429 RESOURCE_EXHAUSTED` (surfaced by the plugin as "Forbidden" after its enterprise-endpoint fallback returned `403 SUBSCRIPTION_REQUIRED #3501`, masking the real error). Two gates were identified via MITM bisection and fixed:

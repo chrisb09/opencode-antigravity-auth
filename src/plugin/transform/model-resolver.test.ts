@@ -381,6 +381,62 @@ describe("resolveModelWithTier", () => {
       expect(result.quotaPreference).toBe("antigravity");
     });
   });
+
+  describe("Gemini 4 models", () => {
+    // The Gemini 4 line (Carbon/Argon/Hydrogen/Neon) uses bare backend ids
+    // with uppercase thinkingLevel strings, verified live on
+    // gemini-4-hydrogen-sonar (2026-11-18). Tier suffixes must be stripped
+    // into thinkingLevel, never numeric budgets.
+
+    it("antigravity-gemini-4-hydrogen-sonar defaults to medium thinkingLevel", () => {
+      const result = resolveModelWithTier(
+        "antigravity-gemini-4-hydrogen-sonar",
+      );
+      expect(result.actualModel).toBe("gemini-4-hydrogen-sonar");
+      expect(result.thinkingLevel).toBe("medium");
+      expect(result.isThinkingModel).toBe(true);
+      expect(result.thinkingBudget).toBeUndefined();
+      expect(result.quotaPreference).toBe("antigravity");
+      expect(result.explicitQuota).toBe(true);
+    });
+
+    it("strips tier suffixes into thinkingLevel for Gemini 4 models", () => {
+      const result = resolveModelWithTier("antigravity-gemini-4-carbon-high");
+      expect(result.actualModel).toBe("gemini-4-carbon");
+      expect(result.thinkingLevel).toBe("high");
+      expect(result.tier).toBe("high");
+    });
+
+    it("keeps bare Gemini 4 ids without quota prefix on the antigravity quota", () => {
+      const result = resolveModelWithTier("gemini-4-argon");
+      expect(result.actualModel).toBe("gemini-4-argon");
+      expect(result.thinkingLevel).toBe("medium");
+      expect(result.quotaPreference).toBe("antigravity");
+      expect(result.explicitQuota).toBe(false);
+    });
+
+    it("passes Claude 5.5 ids through unchanged (no tier rewriting)", () => {
+      const sonnet = resolveModelWithTier("antigravity-claude-sonnet-5-5");
+      expect(sonnet.actualModel).toBe("claude-sonnet-5-5");
+      expect(sonnet.quotaPreference).toBe("antigravity");
+      expect(sonnet.explicitQuota).toBe(true);
+
+      const opus = resolveModelWithTier("antigravity-claude-opus-5-5-thinking");
+      expect(opus.actualModel).toBe("claude-opus-5-5-thinking");
+      expect(opus.isThinkingModel).toBe(true);
+      // No tier suffix: thinking models default to the max budget (32768).
+      expect(opus.thinkingBudget).toBe(32768);
+    });
+
+    it("does not treat the gpt-oss -medium suffix as a thinking tier", () => {
+      // Regression guard for supportsThinkingTiers scope: only gemini and
+      // claude-thinking families take tier suffixes.
+      const result = resolveModelWithTier("antigravity-gpt-oss-120b-medium");
+      expect(result.actualModel).toBe("gpt-oss-120b-medium");
+      expect(result.thinkingLevel).toBeUndefined();
+      expect(result.tier).toBeUndefined();
+    });
+  });
 });
 
 describe("resolveModelWithVariant", () => {

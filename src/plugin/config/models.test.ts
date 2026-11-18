@@ -22,6 +22,7 @@ describe("OPENCODE_MODEL_DEFINITIONS", () => {
       "antigravity-claude-opus-4-6-thinking",
       "antigravity-claude-sonnet-4-6",
       "antigravity-gemini-3-flash",
+      "antigravity-gemini-4-hydrogen-sonar",
       "gemini-2.5-flash",
       "gemini-3-flash-preview",
       "gemini-3.8-flash",
@@ -60,6 +61,17 @@ describe("OPENCODE_MODEL_DEFINITIONS", () => {
     expect(getModel("antigravity-claude-opus-4-6-thinking").variants).toEqual({
       low: { thinkingConfig: { thinkingBudget: 8192 } },
       max: { thinkingConfig: { thinkingBudget: 32768 } },
+    });
+  });
+
+  it("exposes the live-verified Gemini 4 Hydrogen Sonar entry with level variants", () => {
+    const model = getModel("antigravity-gemini-4-hydrogen-sonar");
+    expect(model.name).toBe("Gemini 4 Hydrogen Sonar (Antigravity)");
+    expect(model.limit).toEqual({ context: 1048576, output: 65536 });
+    expect(model.variants).toEqual({
+      low: { thinkingLevel: "low" },
+      medium: { thinkingLevel: "medium" },
+      high: { thinkingLevel: "high" },
     });
   });
 });
@@ -183,6 +195,67 @@ describe("dynamic model discovery helpers", () => {
     expect(models["antigravity-claude-sonnet-4-6"]).toMatchObject({
       name: "Claude Sonnet 4.6 (Antigravity)",
       limit: { context: 250000, output: 64000 },
+    });
+  });
+
+  it("skips disabled placeholder stubs and internal helper models", () => {
+    // Observed in the real fetchAvailableModels response (2026-11-18): the
+    // Gemini 4 lineup is announced as "-disabled"-suffixed placeholder rows
+    // that 404 on generation, alongside internal chat_*/tab_* helpers.
+    const models = modelsFromAntigravityAvailableModels({
+      "gemini-4-carbon-disabled": {
+        displayName: "Gemini 4 Carbon",
+        disabled: true,
+        maxTokens: 1048576,
+        maxOutputTokens: 262144,
+      },
+      "gemini-4-neon-disabled": {
+        displayName: "Gemini 4 Neon",
+        disabled: true,
+      },
+      chat_20706: { isInternal: true, maxTokens: 16384 },
+      tab_flash_lite_preview: { isInternal: true },
+      "gemini-4-hydrogen-sonar": { maxTokens: 1048576, maxOutputTokens: 65536 },
+    });
+
+    expect(models["antigravity-gemini-4-carbon-disabled"]).toBeUndefined();
+    expect(models["antigravity-gemini-4-neon-disabled"]).toBeUndefined();
+    expect(models["antigravity-chat_20706"]).toBeUndefined();
+    expect(models["antigravity-tab_flash_lite_preview"]).toBeUndefined();
+    expect(models["antigravity-gemini-4-hydrogen-sonar"]).toBeDefined();
+  });
+
+  it("uses backend-reported token limits for discovered models", () => {
+    const models = modelsFromAntigravityAvailableModels({
+      "gemini-4-carbon": { maxTokens: 2097152, maxOutputTokens: 262144 },
+      "claude-opus-5-5": { maxTokens: 250000, maxOutputTokens: 64000 },
+      "some-unknown-model": {},
+    });
+
+    expect(models["antigravity-gemini-4-carbon"]?.limit).toEqual({
+      context: 2097152,
+      output: 262144,
+    });
+    expect(models["antigravity-claude-opus-5-5"]?.limit).toEqual({
+      context: 250000,
+      output: 64000,
+    });
+    // Falls back to the per-family defaults when the row lacks limits.
+    expect(models["antigravity-some-unknown-model"]?.limit).toEqual({
+      context: 1048576,
+      output: 65536,
+    });
+  });
+
+  it("infers thinkingLevel variants for discovered Gemini 4 models", () => {
+    const models = modelsFromAntigravityAvailableModels({
+      "gemini-4-carbon": { displayName: "Gemini 4 Carbon" },
+    });
+
+    expect(models["antigravity-gemini-4-carbon"]?.variants).toEqual({
+      low: { thinkingLevel: "low" },
+      medium: { thinkingLevel: "medium" },
+      high: { thinkingLevel: "high" },
     });
   });
 });

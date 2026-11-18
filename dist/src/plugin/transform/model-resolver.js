@@ -64,6 +64,14 @@ export const MODEL_ALIASES = {
 };
 const TIER_REGEX = /-(minimal|low|medium|high)$/;
 const QUOTA_PREFIX_REGEX = /^antigravity-/i;
+/**
+ * Gemini generations that take thinkingLevel strings (low/medium/high) in
+ * thinkingConfig instead of numeric thinking budgets. The Gemini 3 line and
+ * the Gemini 4 line (Carbon/Argon/Hydrogen/Neon) share this behavior on the
+ * Antigravity backend; uppercase thinkingLevel was verified live against
+ * gemini-4-hydrogen-sonar on 2026-11-18.
+ */
+const GEMINI_LEVEL_MODEL_REGEX = /^gemini-[34](?:[.\-_]|$)/i;
 const GEMINI_3_PRO_REGEX = /^gemini-3(?:\.\d+)?-pro/i;
 const GEMINI_3_FLASH_REGEX = /^gemini-3(?:\.\d+)?-flash/i;
 const GEMINI_35_FLASH_REGEX = /^gemini-3\.5-flash(?:-(minimal|low|medium|high))?$/i;
@@ -109,7 +117,7 @@ const IMAGE_GENERATION_MODELS = /image|imagen/i;
  */
 function supportsThinkingTiers(model) {
     const lower = model.toLowerCase();
-    return (lower.includes("gemini-3") ||
+    return (isGeminiThinkingLevelModel(lower) ||
         lower.includes("gemini-2.5") ||
         (lower.includes("claude") && lower.includes("thinking")));
 }
@@ -146,8 +154,15 @@ function getBudgetFamily(model) {
 function isThinkingCapableModel(model) {
     const lower = model.toLowerCase();
     return (lower.includes("thinking") ||
-        lower.includes("gemini-3") ||
+        isGeminiThinkingLevelModel(lower) ||
         lower.includes("gemini-2.5"));
+}
+/**
+ * Gemini generations that use thinkingLevel strings on the Antigravity path
+ * (Gemini 3.x and the Gemini 4 line). See GEMINI_LEVEL_MODEL_REGEX.
+ */
+export function isGeminiThinkingLevelModel(model) {
+    return GEMINI_LEVEL_MODEL_REGEX.test(model);
 }
 function isGemini3ProModel(model) {
     return GEMINI_3_PRO_REGEX.test(model);
@@ -232,6 +247,12 @@ export function getDefaultGemini3ThinkingLevel(model) {
     // agy 1.5.7 defaults Gemini 3.8 Flash to Medium (its settings ship
     // "Gemini 3.8 Flash (Medium)"); the backend only serves low/medium/high.
     if (/^gemini-3\.8-flash(?:-|$)/.test(normalized)) {
+        return "medium";
+    }
+    // Gemini 4 line (Carbon/Argon/Hydrogen/Neon). gemini-4-hydrogen-sonar
+    // accepted LOW/MEDIUM/HIGH live (2026-11-18); no advertised agy default
+    // yet, so Medium (matching the 3.8 Flash UI default) until verified.
+    if (/^gemini-4(?:[.\-_]|$)/.test(normalized)) {
         return "medium";
     }
     return "low";
@@ -338,13 +359,14 @@ export function resolveModelWithTier(requestedModel, options = {}) {
             explicitQuota,
         };
     }
-    // Check if this is a Gemini 3 model (works for both aliased and skipAlias paths)
-    const isEffectiveGemini3 = resolvedModel.toLowerCase().includes("gemini-3");
+    // Check the thinking-capable family of the resolved model. Gemini 3.x and
+    // the Gemini 4 line both use thinkingLevel strings (not numeric budgets).
+    const isEffectiveLevelModel = isGeminiThinkingLevelModel(resolvedModel);
     const isClaudeThinking = resolvedModel.toLowerCase().includes("claude") &&
         resolvedModel.toLowerCase().includes("thinking");
     if (!effectiveTier) {
-        // Gemini 3 models without explicit tier get a default thinkingLevel
-        if (isEffectiveGemini3) {
+        // Gemini level-family models without explicit tier get a default thinkingLevel
+        if (isEffectiveLevelModel) {
             return {
                 actualModel: resolvedModel,
                 thinkingLevel: getDefaultGemini3ThinkingLevel(resolvedModel),
@@ -371,8 +393,8 @@ export function resolveModelWithTier(requestedModel, options = {}) {
             explicitQuota,
         };
     }
-    // Gemini 3 models with tier always get thinkingLevel set
-    if (isEffectiveGemini3) {
+    // Gemini level-family models with tier always get thinkingLevel set
+    if (isEffectiveLevelModel) {
         return {
             actualModel: resolvedModel,
             thinkingLevel: effectiveTier,

@@ -75,6 +75,7 @@ import {
   resolveAntigravityGemini37FlashBackendModel,
   resolveAntigravityGemini38FlashBackendModel,
   getDefaultGemini3ThinkingLevel,
+  isGeminiThinkingLevelModel,
   isClaudeModel,
   isClaudeThinkingModel,
   CLAUDE_THINKING_MAX_OUTPUT_TOKENS,
@@ -148,9 +149,10 @@ function buildSignatureSessionKey(
 function shouldCacheThinkingSignatures(model?: string): boolean {
   if (typeof model !== "string") return false;
   const lower = model.toLowerCase();
-  // Both Claude and Gemini 3 models require thought signature caching
-  // for multi-turn conversations with function calling
-  return lower.includes("claude") || lower.includes("gemini-3");
+  // Both Claude and the Gemini 3.x/4.x model families require thought
+  // signature caching for multi-turn conversations with function calling.
+  // (Gemini 4 shares the Gemini wire family; verified via gemini-4-hydrogen-sonar.)
+  return lower.includes("claude") || isGeminiThinkingLevelModel(lower);
 }
 
 /**
@@ -1017,7 +1019,8 @@ function ensureDefaultGemini3ThinkingLevel(
   thinkingLevel?: string,
 ): void {
   if (
-    !effectiveModel.toLowerCase().includes("gemini-3") ||
+    // Gemini 3.x and the Gemini 4 line use thinkingLevel strings.
+    !isGeminiThinkingLevelModel(effectiveModel) ||
     isImageGenerationModel(effectiveModel)
   ) {
     return;
@@ -1565,21 +1568,22 @@ export function prepareAntigravityRequest(
           requestPayload.providerOptions as Record<string, unknown> | undefined,
           rawGenerationConfig,
         );
-        const isGemini3 = effectiveModel.toLowerCase().includes("gemini-3");
+        // Gemini 3.x and the Gemini 4 line use thinkingLevel strings natively.
+        const isGeminiLevelModel = isGeminiThinkingLevelModel(effectiveModel);
 
         log.debug(
           `[ThinkingResolution] rawModel=${rawModel} resolvedModel=${effectiveModel} resolvedTier=${tierThinkingLevel ?? "none"} variantLevel=${variantConfig?.thinkingLevel ?? "none"} variantBudget=${variantConfig?.thinkingBudget ?? "none"} providerOptions.google=${JSON.stringify((requestPayload.providerOptions as any)?.google ?? null)} generationConfig.thinkingConfig=${JSON.stringify((rawGenerationConfig as any)?.thinkingConfig ?? null)}`,
         );
 
-        if (variantConfig?.thinkingLevel && isGemini3) {
-          // Gemini 3 native format - use thinkingLevel directly
+        if (variantConfig?.thinkingLevel && isGeminiLevelModel) {
+          // Gemini 3/4 native format - use thinkingLevel directly
           tierThinkingLevel = variantConfig.thinkingLevel;
           tierThinkingBudget = undefined;
         } else if (variantConfig?.thinkingBudget) {
-          if (isGemini3) {
-            // Legacy format for Gemini 3 - convert with deprecation warning
+          if (isGeminiLevelModel) {
+            // Legacy format for Gemini 3/4 - convert with deprecation warning
             log.warn(
-              "[Deprecated] Using thinkingBudget for Gemini 3 model. Use thinkingLevel instead.",
+              "[Deprecated] Using thinkingBudget for a thinkingLevel model. Use thinkingLevel instead.",
             );
             tierThinkingLevel =
               variantConfig.thinkingBudget <= 8192

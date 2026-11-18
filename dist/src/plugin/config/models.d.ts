@@ -35,6 +35,14 @@ export interface GeminiApiModel {
 export interface AntigravityAvailableModel {
     displayName?: string;
     modelName?: string;
+    /** UI-only placeholder flag: rows with disabled=true are not servable (404). */
+    disabled?: boolean;
+    /** Internal helper models (chat_x/table_x ids) that must not appear in the catalog. */
+    isInternal?: boolean;
+    /** Context window in tokens, as reported by the backend registry. */
+    maxTokens?: number;
+    /** Output token cap, as reported by the backend registry. */
+    maxOutputTokens?: number;
 }
 export type AntigravityAvailableModels = Record<string, AntigravityAvailableModel>;
 export declare const OPENCODE_MODEL_DEFINITIONS: OpencodeModelDefinitions;

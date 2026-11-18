@@ -50,6 +50,11 @@ export declare const GEMINI_3_THINKING_LEVELS: readonly ["minimal", "low", "medi
  */
 export declare const MODEL_ALIASES: Record<string, string>;
 /**
+ * Gemini generations that use thinkingLevel strings on the Antigravity path
+ * (Gemini 3.x and the Gemini 4 line). See GEMINI_LEVEL_MODEL_REGEX.
+ */
+export declare function isGeminiThinkingLevelModel(model: string): boolean;
+/**
  * Cloud Code does not expose a bare `gemini-3.5-flash` backend id.
  * Antigravity/agy resolves the UI model to these advertised ids instead.
  */

@@ -12,7 +12,7 @@ import { CLAUDE_TOOL_SYSTEM_INSTRUCTION, CLAUDE_DESCRIPTION_PROMPT, } from "../c
 import { analyzeConversationState, closeToolLoopForThinking, needsThinkingRecovery, } from "./thinking-recovery";
 import { sanitizeCrossModelPayloadInPlace } from "./transform/cross-model-sanitizer";
 import { isGemini3Model, isImageGenerationModel, buildImageGenerationConfig, applyGeminiTransforms, sanitizeGeminiGenerationConfigForModel, } from "./transform";
-import { resolveModelForHeaderStyle, resolveAntigravityGemini35FlashBackendModel, resolveAntigravityGemini36FlashBackendModel, resolveAntigravityGemini37FlashBackendModel, resolveAntigravityGemini38FlashBackendModel, getDefaultGemini3ThinkingLevel, isClaudeModel, isClaudeThinkingModel, CLAUDE_THINKING_MAX_OUTPUT_TOKENS, } from "./transform";
+import { resolveModelForHeaderStyle, resolveAntigravityGemini35FlashBackendModel, resolveAntigravityGemini36FlashBackendModel, resolveAntigravityGemini37FlashBackendModel, resolveAntigravityGemini38FlashBackendModel, getDefaultGemini3ThinkingLevel, isGeminiThinkingLevelModel, isClaudeModel, isClaudeThinkingModel, CLAUDE_THINKING_MAX_OUTPUT_TOKENS, } from "./transform";
 import { detectErrorType } from "./recovery";
 import { getSessionFingerprint, buildFingerprintHeaders, } from "./fingerprint";
 const log = createLogger("request");
@@ -60,9 +60,10 @@ function shouldCacheThinkingSignatures(model) {
     if (typeof model !== "string")
         return false;
     const lower = model.toLowerCase();
-    // Both Claude and Gemini 3 models require thought signature caching
-    // for multi-turn conversations with function calling
-    return lower.includes("claude") || lower.includes("gemini-3");
+    // Both Claude and the Gemini 3.x/4.x model families require thought
+    // signature caching for multi-turn conversations with function calling.
+    // (Gemini 4 shares the Gemini wire family; verified via gemini-4-hydrogen-sonar.)
+    return lower.includes("claude") || isGeminiThinkingLevelModel(lower);
 }
 /**
  * Returns the project component to use in the thinking-signature cache key.
@@ -686,7 +687,9 @@ export function getPluginSessionId() {
     return PLUGIN_SESSION_ID;
 }
 function ensureDefaultGemini3ThinkingLevel(requestPayload, effectiveModel, thinkingLevel) {
-    if (!effectiveModel.toLowerCase().includes("gemini-3") ||
+    if (
+    // Gemini 3.x and the Gemini 4 line use thinkingLevel strings.
+    !isGeminiThinkingLevelModel(effectiveModel) ||
         isImageGenerationModel(effectiveModel)) {
         return;
     }
@@ -1015,17 +1018,18 @@ export function prepareAntigravityRequest(input, init, accessToken, projectId, e
                 const rawGenerationConfig = requestPayload.generationConfig;
                 const extraBody = requestPayload.extra_body;
                 const variantConfig = extractVariantThinkingConfig(requestPayload.providerOptions, rawGenerationConfig);
-                const isGemini3 = effectiveModel.toLowerCase().includes("gemini-3");
+                // Gemini 3.x and the Gemini 4 line use thinkingLevel strings natively.
+                const isGeminiLevelModel = isGeminiThinkingLevelModel(effectiveModel);
                 log.debug(`[ThinkingResolution] rawModel=${rawModel} resolvedModel=${effectiveModel} resolvedTier=${tierThinkingLevel ?? "none"} variantLevel=${variantConfig?.thinkingLevel ?? "none"} variantBudget=${variantConfig?.thinkingBudget ?? "none"} providerOptions.google=${JSON.stringify(requestPayload.providerOptions?.google ?? null)} generationConfig.thinkingConfig=${JSON.stringify(rawGenerationConfig?.thinkingConfig ?? null)}`);
-                if (variantConfig?.thinkingLevel && isGemini3) {
-                    // Gemini 3 native format - use thinkingLevel directly
+                if (variantConfig?.thinkingLevel && isGeminiLevelModel) {
+                    // Gemini 3/4 native format - use thinkingLevel directly
                     tierThinkingLevel = variantConfig.thinkingLevel;
                     tierThinkingBudget = undefined;
                 }
                 else if (variantConfig?.thinkingBudget) {
-                    if (isGemini3) {
-                        // Legacy format for Gemini 3 - convert with deprecation warning
-                        log.warn("[Deprecated] Using thinkingBudget for Gemini 3 model. Use thinkingLevel instead.");
+                    if (isGeminiLevelModel) {
+                        // Legacy format for Gemini 3/4 - convert with deprecation warning
+                        log.warn("[Deprecated] Using thinkingBudget for a thinkingLevel model. Use thinkingLevel instead.");
                         tierThinkingLevel =
                             variantConfig.thinkingBudget <= 8192
                                 ? "low"

@@ -6,6 +6,7 @@
  * - Tool normalization (function/custom format)
  * - Schema transformation (JSON Schema -> Gemini Schema format)
  */
+import { isGeminiThinkingLevelModel } from "./model-resolver";
 /**
  * Transform a JSON Schema to Gemini-compatible format.
  * Based on @google/genai SDK's processJsonSchema() function.
@@ -457,8 +458,8 @@ export function applyGeminiTransforms(payload, options) {
     // 1. Apply thinking config if needed
     if (normalizedThinking) {
         let thinkingConfig;
-        if (tierThinkingLevel && isGemini3Model(model)) {
-            // Gemini 3 uses thinkingLevel string
+        if (tierThinkingLevel && isGeminiThinkingLevelModel(model)) {
+            // Gemini 3.x / Gemini 4 use thinkingLevel strings
             thinkingConfig = buildGemini3ThinkingConfig(normalizedThinking.includeThoughts ?? true, tierThinkingLevel);
         }
         else {

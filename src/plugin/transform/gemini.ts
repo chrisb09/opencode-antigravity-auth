@@ -13,6 +13,7 @@ import type {
   ThinkingTier,
   GoogleSearchConfig,
 } from "./types";
+import { isGeminiThinkingLevelModel } from "./model-resolver";
 
 /**
  * Transform a JSON Schema to Gemini-compatible format.
@@ -608,8 +609,8 @@ export function applyGeminiTransforms(
   if (normalizedThinking) {
     let thinkingConfig: ThinkingConfig;
 
-    if (tierThinkingLevel && isGemini3Model(model)) {
-      // Gemini 3 uses thinkingLevel string
+    if (tierThinkingLevel && isGeminiThinkingLevelModel(model)) {
+      // Gemini 3.x / Gemini 4 use thinkingLevel strings
       thinkingConfig = buildGemini3ThinkingConfig(
         normalizedThinking.includeThoughts ?? true,
         tierThinkingLevel,

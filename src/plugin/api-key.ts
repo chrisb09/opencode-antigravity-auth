@@ -1,7 +1,7 @@
 import { extractVariantThinkingConfig } from "./request-helpers";
 import {
   applyGeminiTransforms,
-  isGemini3Model,
+  isGeminiThinkingLevelModel,
   isImageGenerationModel,
   mapAntigravityModelToPublicApi,
   resolveModelForHeaderStyle,
@@ -512,7 +512,7 @@ function applyAgySdkGeminiBodyTransforms(payload: RequestPayload, model: string,
       ? { ...extraThinkingConfig }
       : {};
 
-  if (isGemini3Model(model)) {
+  if (isGeminiThinkingLevelModel(model)) {
     const resolvedLevel = variantConfig?.thinkingLevel
       ?? (typeof existingThinkingConfig.thinkingLevel === "string" ? existingThinkingConfig.thinkingLevel : undefined)
       ?? (variantConfig?.thinkingBudget !== undefined ? thinkingLevelFromBudget(variantConfig.thinkingBudget) : undefined)

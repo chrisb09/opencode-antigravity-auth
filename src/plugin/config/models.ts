@@ -45,6 +45,14 @@ export interface GeminiApiModel {
 export interface AntigravityAvailableModel {
   displayName?: string;
   modelName?: string;
+  /** UI-only placeholder flag: rows with disabled=true are not servable (404). */
+  disabled?: boolean;
+  /** Internal helper models (chat_x/table_x ids) that must not appear in the catalog. */
+  isInternal?: boolean;
+  /** Context window in tokens, as reported by the backend registry. */
+  maxTokens?: number;
+  /** Output token cap, as reported by the backend registry. */
+  maxOutputTokens?: number;
 }
 
 export type AntigravityAvailableModels = Record<string, AntigravityAvailableModel>;
@@ -97,6 +105,21 @@ export const OPENCODE_MODEL_DEFINITIONS: OpencodeModelDefinitions = {
       max: { thinkingConfig: { thinkingBudget: 32768 } },
     },
   },
+  "antigravity-gemini-4-hydrogen-sonar": {
+    // Unadvertised Gemini 4 variant that already serves on consumer accounts
+    // (2026-11-18): the registry row has no displayName, the bare
+    // gemini-4-hydrogen id is a disabled stub (404 on generate). Accepts
+    // uppercase thinkingLevel strings like the Gemini 3 line and answered a
+    // minimal probe in ~1.4-4.6s when 3.8 Flash was heavily queued.
+    name: "Gemini 4 Hydrogen Sonar (Antigravity)",
+    limit: { context: 1048576, output: 65536 },
+    modalities: DEFAULT_MODALITIES,
+    variants: {
+      low: { thinkingLevel: "low" },
+      medium: { thinkingLevel: "medium" },
+      high: { thinkingLevel: "high" },
+    },
+  },
   "gemini-2.5-flash": {
     name: "Gemini 2.5 Flash (Gemini CLI)",
     limit: { context: 1048576, output: 65536 },
@@ -143,6 +166,17 @@ function defaultVariantsForModel(modelId: string): Record<string, ModelVariant> 
     return {
       low: { thinkingConfig: { thinkingBudget: 8192 } },
       max: { thinkingConfig: { thinkingBudget: 32768 } },
+    };
+  }
+  if (normalized.startsWith("gemini-4")) {
+    // Gemini 4 line (Carbon/Argon/Hydrogen/Neon): uppercase thinkingLevel
+    // strings verified live on gemini-4-hydrogen-sonar (2026-11-18). No
+    // minimal tier advertised; minThinkingBudget >= 32 suggests low is the
+    // floor.
+    return {
+      low: { thinkingLevel: "low" },
+      medium: { thinkingLevel: "medium" },
+      high: { thinkingLevel: "high" },
     };
   }
   if (normalized.startsWith("gemini-3") || normalized.startsWith("gemini-2.5")) {
@@ -226,13 +260,22 @@ export function modelsFromAntigravityAvailableModels(
   const definitions: OpencodeModelDefinitions = {};
 
   for (const [sourceId, entry] of Object.entries(models)) {
+    // Skip backend stubs: rows flagged disabled are UI placeholders backed by
+    // no servable model id (verified 2026-11-18: "gemini-4-<element>-disabled"
+    // rows return 404 on generation while listed), and internal helper models
+    // power IDE features only.
+    if (entry.disabled === true || entry.isInternal === true) continue;
     const modelId = antigravityModelIdFromEntry(sourceId, entry);
     if (!modelId) continue;
 
     const variants = defaultVariantsForModel(modelId);
+    const fallbackLimit = defaultLimitForModel(modelId);
     const discovered: OpencodeModelDefinition = {
       name: entry.displayName ? `${entry.displayName} (Antigravity)` : `${titleFromModelId(modelId)} (Antigravity)`,
-      limit: defaultLimitForModel(modelId),
+      limit: {
+        context: entry.maxTokens ?? fallbackLimit.context,
+        output: entry.maxOutputTokens ?? fallbackLimit.output,
+      },
       modalities: DEFAULT_MODALITIES,
       ...(variants ? { variants } : {}),
     };
