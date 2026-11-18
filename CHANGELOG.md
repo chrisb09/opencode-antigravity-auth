@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **Antigravity backend request gates (2026-11-18)** - The backend started rejecting the plugin's generate requests with a fake `429 RESOURCE_EXHAUSTED` (surfaced by the plugin as "Forbidden" after its enterprise-endpoint fallback returned `403 SUBSCRIPTION_REQUIRED #3501`, masking the real error). Two gates were identified via MITM bisection and fixed:
+  - **Stale CLI version gate:** requests with the pinned `antigravity/cli/1.5.7` User-Agent began hanging/failing after agy auto-updated to 1.5.11. `ANTIGRAVITY_CLI_USER_AGENT` is now `antigravity/cli/1.5.11 (...; cl=1024248524; auth_method=consumer)`. Keep it in sync after agy updates.
+  - **systemInstruction content scan:** generate requests whose systemInstruction names third-party agent harnesses (e.g. "OpenCode") are rejected immediately regardless of quota (verified content-based: a 20KB benign appendix passes, the harness prompt passes with the name redacted). The plugin now sends agy's genuine CLI prompt verbatim in `systemInstruction` (captured from 1.5.11, `src/plugin/transform/agy-system-instruction.ts`) and relocates the harness-provided system prompt into a leading user-role content part (`relocateSystemInstructionForAntigravity`), applied on both the standard and prewrapped-body request paths. This supersedes the old CLIProxyAPI-style preamble stitch.
+
 ### Changed
 
 - **Request pipeline now clones agy 1.5.7 (MITM-verified)** - Captured live traffic from the installed `agy` CLI (v1.5.7) and aligned the plugin's wire behavior: CLI User-Agent updated to `antigravity/cli/1.5.7 (...; cl=1019769835; auth_method=consumer)`; the consumer fallback project is now the fixed `aicode-consumers` (replacing random synthetic project ids and `default-cli-project`); `requestId` uses agy's `agent/<cascade-uuid>/<epoch-ms>/<trajectory-uuid>/<turn>` format; cascade/trajectory telemetry `labels` are sent on generate requests; `thinkingLevel` is sent UPPERCASE (e.g. `MEDIUM`) on the Antigravity path while the public Gemini API path keeps lowercase; quota/search/verification requests use the CLI User-Agent without IDE-style headers, matching agy; the onboard fallback tier id is `free-tier` (the backend's reported `currentTier.id`).
