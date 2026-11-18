@@ -46,11 +46,19 @@ export const OPENCODE_MODEL_DEFINITIONS = {
         },
     },
     "antigravity-gemini-4-hydrogen-sonar": {
-        // Unadvertised Gemini 4 variant that already serves on consumer accounts
-        // (2026-11-18): the registry row has no displayName, the bare
-        // gemini-4-hydrogen id is a disabled stub (404 on generate). Accepts
-        // uppercase thinkingLevel strings like the Gemini 3 line and answered a
-        // minimal probe in ~1.4-4.6s when 3.8 Flash was heavily queued.
+        // Unadvertised Gemini 4 row that already serves on consumer accounts
+        // (verified live 2026-11-18 and 2026-11-19: ~1.4-4.6s TTFB while 3.8
+        // Flash was heavily queued). "sonar" is not a model edition but the
+        // internal name of an Antigravity experiment: sharedModelExperiments
+        // defines a "sonar" experiment ("allow-experimental-monitors" +
+        // "default-sonar-monitors-config", a textproto monitor profile), the
+        // config surface carries sonar-active-tags/sonar-monitors-config keys,
+        // and mainstream rows (claude-4.6, gemini-3.8-flash-high, gemini-2.5-pro)
+        // embed modelExperimentIds: ["sonar"]. This registry entry is Gemini 4
+        // Hydrogen's separately-servable experiment-lane row (the public
+        // gemini-4-hydrogen id remains a disabled 404 stub; carbon/argon/neon
+        // have no -sonar lane). Registry row has no displayName. Accepts
+        // uppercase thinkingLevel strings like the Gemini 3 line.
         name: "Gemini 4 Hydrogen Sonar (Antigravity)",
         limit: { context: 1048576, output: 65536 },
         modalities: DEFAULT_MODALITIES,
