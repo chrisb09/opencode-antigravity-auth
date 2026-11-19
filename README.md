@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](package.json)
 
-Google OAuth for **Antigravity** (Google's agentic IDE) and the legacy Gemini CLI, so OpenCode can use your own Google plan's quota and model catalog — including **Gemini 4 Hydrogen**, **Gemini 3.8 Flash**, **Gemini 3 Flash** and **Claude** — with multi-account rotation.
+Google OAuth for **Antigravity** (Google's agentic IDE) and the legacy Gemini CLI, so OpenCode can use your own Google plan's quota and model catalog — **Gemini 3.8 Flash**, **Gemini 4 Hydrogen**, **Claude Sonnet/Opus 4.6** and **GPT-OSS 120B** — with multi-account rotation.
 
 > **Fork notice** — this is [@chrisb09](https://github.com/chrisb09)'s fork of [NoeFabris/opencode-antigravity-auth](https://github.com/NoeFabris/opencode-antigravity-auth). It tracks the live `agy` (Antigravity CLI) wire protocol and the backend's current request gates. See [Fork differences](#fork-differences). Pre-built `dist/` artifacts are committed, so the fork works directly from GitHub with no build step.
 
@@ -26,7 +26,7 @@ Google OAuth for **Antigravity** (Google's agentic IDE) and the legacy Gemini CL
 
 ## What you get
 
-- **Antigravity model access** — Gemini 4 Hydrogen, Gemini 3.8 Flash, Gemini 3 Flash, plus the remaining Claude 4.6 generation
+- **Antigravity model access** — Gemini 3.8 Flash, Gemini 4 Hydrogen, Claude Sonnet/Opus 4.6 and GPT-OSS 120B, with next-gen ids pre-registered
 - **Multi-account rotation** — add several Google accounts; the plugin rotates on rate limits, with per-account quota tracking
 - **Thinking levels** — `low`/`medium`/`high` for Gemini, thinking budgets for Claude, selectable per request as variants
 - **Dynamic model discovery** — models and context limits are read from the backend's own registry (`fetchAvailableModels`), with bundled definitions as fallback
@@ -151,34 +151,52 @@ Add the package root to `~/.config/opencode/cli.json`:
 
 ## Models
 
-### Current catalog
+### What the backend serves
 
-The visible catalog is deliberately small. Everything else is either discovery-provided for your account or a hidden alias (below).
+Verified against the live registry (`fetchAvailableModels`) and real generation probes on **2026-11-19**. Antigravity splits quota into two pools — **Gemini** and **Claude/GPT** — so exhausting one leaves the other usable.
 
-| Model | Variants | Context | Notes |
-|-------|----------|---------|-------|
-| `gemini-3.8-flash` | `low`, `medium`, `high` (`medium` default) | 1,048,576 | Canonical Gemini 3.8 Flash. Antigravity-first with Gemini CLI fallback. The backend serves tier-suffixed ids (`gemini-3.8-flash-low/medium/high`) and the plugin maps them automatically. `gemini-flash-latest` aliases here. |
-| `antigravity-gemini-4-hydrogen` | `low`, `medium`, `high` (`medium` default) | 1,048,576 | Gemini 4 Hydrogen. Served today from Google's `sonar` experiment lane; the plugin switches to the bare public id automatically once the backend announces it. |
-| `antigravity-gemini-3-flash` | `minimal`, `low`, `medium`, `high` | 1,048,576 | Gemini 3 Flash with thinking |
-| `gemini-2.5-flash` | — | 1,048,576 | Gemini CLI quota (the backend maps it to Gemini 3.5 Flash-Lite) |
-| `gemini-3-flash-preview` | — | 1,048,576 | Gemini CLI quota |
+| Model | OpenCode id | Variants | Context | Availability |
+|-------|-------------|----------|---------|--------------|
+| Gemini 3.8 Flash | `gemini-3.8-flash` | `low`, `medium`, `high` (`medium` default) | 1,048,576 | Current; the backend's own default |
+| Claude Sonnet 4.6 (Thinking) | `antigravity-claude-sonnet-4-6` | — | 250,000 | Current |
+| Claude Opus 4.6 (Thinking) | `antigravity-claude-opus-4-6-thinking` | `low`, `max` | 250,000 | Current |
+| GPT-OSS 120B (Medium) | `antigravity-gpt-oss-120b-medium` | — | 131,072 | Current |
+| Gemini 4 Hydrogen | `antigravity-gemini-4-hydrogen` | `low`, `medium`, `high` | 1,048,576 | Live, served from the `sonar` experiment lane |
+| Gemini 4 Carbon / Argon / Neon | `antigravity-gemini-4-{carbon,argon,neon}` | `low`, `medium`, `high` | 1,048,576 | Announced; backend returns 404 until enabled |
+| Claude Sonnet 5.5 / Opus 5.5 Thinking | `antigravity-claude-{sonnet,opus}-5-5…` | — / `low`, `max` | 250,000 | Prepared; not in the registry yet |
 
-> **Model discovery** — on by default. Any enabled model in your account's backend registry is added automatically, with the backend's own context/output limits, e.g. `gpt-oss-120b-medium` for accounts that have it. Disabled placeholder rows and internal helper models are filtered out.
+> **Claude 4.6 status** — still fully served today and exposed as a normal model. Google is expected to retire the generation; when that happens the ids stay routable (hidden from the picker) and the prepared 5.5 entries take over. No action needed from you.
 
-### Hidden and prepared models
+> **Gemini 4 Hydrogen** — the backend only serves it through the `sonar` experiment lane (`gemini-4-hydrogen-sonar`). The plugin rewrites requests automatically and switches to the bare `gemini-4-hydrogen` id once the registry announces it.
 
-These are routable when requested explicitly, but hidden from the default picker:
+### Gemini CLI quota (legacy)
 
-| Id | Status | Why |
-|----|--------|-----|
-| `antigravity-claude-sonnet-4-6` | Deprecated | Hidden from the picker; still fully served. The 4.6 generation is being rotated out. |
-| `antigravity-claude-opus-4-6-thinking` | Deprecated | Same, with `low`/`max` thinking budgets. |
-| `antigravity-gemini-4-carbon`, `-argon`, `-neon` | Prepared | Announced by the backend only as disabled placeholders. They route the moment your account can serve them. |
-| `antigravity-claude-sonnet-5-5`, `antigravity-claude-opus-5-5-thinking` | Prepared | Not in the current registry. Ready for paid accounts / the 5.5 rollout. |
-| `antigravity-gemini-4-hydrogen-sonar` | Compat alias | Direct reference to the experiment-lane id behind `antigravity-gemini-4-hydrogen`. |
-| `antigravity-gemini-3.8-flash` | Compat alias | Pins the request to Antigravity quota (no Gemini CLI fallback). |
-| `gemini-3.8-flash-{minimal,low,medium,high}`, `gemini-flash-latest` | Aliases | `minimal` maps to `low`; the rest map to the canonical entry. |
-| `gemini-3.5-flash`, `gemini-3.5-flash-lite`, `gemini-3.6-flash`, `gemini-3.7-flash`, `gemini-2.5-pro`, `gemini-3-pro-preview`, `gemini-3.1-pro`, … | Legacy | Existing configs keep resolving; pruned from the picker. |
+| Model | OpenCode id | Notes |
+|-------|-------------|-------|
+| Gemini 2.5 Flash | `gemini-2.5-flash` | Legacy Gemini CLI route; the Antigravity backend maps it to Gemini 3.5 Flash-Lite |
+| Gemini 3 Flash Preview | `gemini-3-flash-preview` | Gemini CLI preview route |
+| Gemini 3 Flash | `antigravity-gemini-3-flash` | Previous Antigravity generation, still served; thinking levels `minimal`–`high` |
+
+### Aliases
+
+| Alias | Resolves to | Use |
+|-------|-------------|-----|
+| `antigravity-gemini-3.8-flash` | `gemini-3.8-flash` | Pins to Antigravity quota (no Gemini CLI fallback) |
+| `antigravity-gemini-4-hydrogen-sonar` | `gemini-4-hydrogen-sonar` | Direct experiment-lane id |
+| `gemini-flash-latest`, `gemini-3.8-flash-{minimal,low,medium,high}` | `gemini-3.8-flash` | `minimal` maps to `low` |
+
+### Legacy ids (still resolve)
+
+<details>
+<summary><b>Older generations kept for existing configs</b></summary>
+
+`gemini-3.5-flash`, `gemini-3.5-flash-lite`, `gemini-3.6-flash`, `gemini-3.7-flash`, `gemini-2.5-pro`, `gemini-3-pro-preview`, `gemini-3.1-pro`, `gemini-3.1-pro-preview-customtools`, `antigravity-gemini-3-pro`, `antigravity-gemini-3.1-pro`, `antigravity-gemini-3.{5,6,7}-flash`.
+
+They resolve, so old configs keep working, but they are hidden from the picker.
+
+</details>
+
+> **Model discovery** — V1 reads the backend registry at runtime (`model_discovery.enabled`, on by default) and adds any enabled model with its real limits. V2 ships the bundled catalog above and exposes legacy ids as hidden aliases.
 
 ### Choosing thinking levels
 
@@ -255,6 +273,11 @@ Only needed if your OpenCode version does not load plugin models dynamically. `o
             "low": { "thinkingConfig": { "thinkingBudget": 8192 } },
             "max": { "thinkingConfig": { "thinkingBudget": 32768 } }
           }
+        },
+        "antigravity-gpt-oss-120b-medium": {
+          "name": "GPT-OSS 120B (Antigravity)",
+          "limit": { "context": 131072, "output": 32768 },
+          "modalities": { "input": ["text"], "output": ["text"] }
         },
         "gemini-2.5-flash": {
           "name": "Gemini 2.5 Flash (Gemini CLI)",
@@ -562,7 +585,7 @@ Disable its built-in Google auth to avoid conflicts, and point agent models at t
 Compared with upstream, this fork:
 
 - **Mirrors the verified `agy` wire protocol** — official CLI User-Agent (currently `1.5.11, cl=1024248524`), fixed `aicode-consumers` consumer project, `requestId`/trajectory `labels` format, uppercase `thinkingLevel`, and the genuine CLI system instruction with harness headers stripped. This is what passes the 2026-11-18 backend gates.
-- **Tracks the current model lineup** — Gemini 3.8 Flash consolidated into one canonical entry, Gemini 4 Hydrogen exposed via its servable experiment lane (registry-aware, self-switching when the public id goes live), Gemini 4 Carbon/Argon/Neon and Claude 5.5 prepared as hidden entries, Claude 4.6 deprecated but routable.
+- **Tracks the current model lineup** — Gemini 3.8 Flash consolidated into one canonical entry, Gemini 4 Hydrogen exposed via its servable experiment lane (registry-aware, self-switching when the public id goes live), GPT-OSS 120B added, Gemini 4 Carbon/Argon/Neon and Claude 5.5 prepared as hidden entries, and Claude 4.6 kept first-class until Google actually retires it.
 - **Hardens model discovery** — ignores disabled placeholder rows and internal helper models; adopts backend-reported context/output limits.
 - **Supports OpenCode V2** — separate `v2/` entrypoint, `antigravity/...` namespace, TUI slash commands.
 - **Commits `dist/`** — so `github:` installs work without a build step.

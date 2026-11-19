@@ -105,6 +105,16 @@ export const OPENCODE_MODEL_DEFINITIONS: OpencodeModelDefinitions = {
       max: { thinkingConfig: { thinkingBudget: 32768 } },
     },
   },
+  "antigravity-gpt-oss-120b-medium": {
+    // Advertised and served by the Antigravity backend (registry probe
+    // 2026-11-19: generate returned 200 in ~0.8s, modelVersion
+    // gpt-oss-120b-medium). The "-medium" suffix is part of the backend id,
+    // not a selectable thinking tier, so no variants are exposed. Text-only
+    // input.
+    name: "GPT-OSS 120B (Antigravity)",
+    limit: { context: 131072, output: 32768 },
+    modalities: { input: ["text"], output: ["text"] },
+  },
   "antigravity-gemini-4-hydrogen": {
     // Public-facing Gemini 4 Hydrogen entry. The backend does not yet serve
     // the bare id (a "-disabled" registry stub, 404 on generate); requests

@@ -23,6 +23,7 @@ describe("OPENCODE_MODEL_DEFINITIONS", () => {
       "antigravity-claude-sonnet-4-6",
       "antigravity-gemini-3-flash",
       "antigravity-gemini-4-hydrogen",
+      "antigravity-gpt-oss-120b-medium",
       "gemini-2.5-flash",
       "gemini-3-flash-preview",
       "gemini-3.8-flash",
@@ -62,6 +63,16 @@ describe("OPENCODE_MODEL_DEFINITIONS", () => {
       low: { thinkingConfig: { thinkingBudget: 8192 } },
       max: { thinkingConfig: { thinkingBudget: 32768 } },
     });
+  });
+
+  it("exposes the served GPT-OSS 120B entry with backend limits", () => {
+    const model = getModel("antigravity-gpt-oss-120b-medium");
+    expect(model.name).toBe("GPT-OSS 120B (Antigravity)");
+    expect(model.limit).toEqual({ context: 131072, output: 32768 });
+    // Text-only input per the backend registry row; no thinking variants
+    // ("-medium" is part of the backend id, not a tier).
+    expect(model.modalities).toEqual({ input: ["text"], output: ["text"] });
+    expect(model.variants).toBeUndefined();
   });
 
   it("exposes the public-facing Gemini 4 Hydrogen entry with level variants", () => {

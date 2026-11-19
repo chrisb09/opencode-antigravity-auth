@@ -16,20 +16,21 @@ describe("V2 model catalog", () => {
     }
   });
 
-  it("hides deprecated Claude 4.6 and prepared Gemini 4 / Claude 5.5 ids from V2", () => {
+  it("shows the served lineup and hides only prepared / legacy ids", () => {
     const ids = v2ModelDefinitions().map(([id]) => id);
     expect(ids).toEqual([
       "antigravity-gemini-3-flash",
       "gemini-3.8-flash",
+      "antigravity-claude-sonnet-4-6",
+      "antigravity-claude-opus-4-6-thinking",
+      "antigravity-gpt-oss-120b-medium",
       "antigravity-gemini-4-hydrogen",
       "gemini-2.5-flash",
       "gemini-3-flash-preview",
     ]);  });
 
-  it("hides deprecated and prepared ids behind the compat mechanism", () => {
+  it("hides prepared and legacy ids behind the compat mechanism", () => {
     for (const id of [
-      "antigravity-claude-sonnet-4-6",
-      "antigravity-claude-opus-4-6-thinking",
       "antigravity-gemini-4-carbon",
       "antigravity-gemini-4-argon",
       "antigravity-gemini-4-neon",
@@ -42,6 +43,10 @@ describe("V2 model catalog", () => {
     }
     // Hydrogen itself is canonically visible (mapped to the sonar lane).
     expect(HIDDEN_MODEL_IDS.has("antigravity-gemini-4-hydrogen")).toBe(false);
+    // Claude 4.6 is still served, so it stays first-class until the backend
+    // actually retires it.
+    expect(HIDDEN_MODEL_IDS.has("antigravity-claude-sonnet-4-6")).toBe(false);
+    expect(HIDDEN_MODEL_IDS.has("antigravity-claude-opus-4-6-thinking")).toBe(false);
   });
 
   it("keeps every non-hidden catalog entry in V2", () => {

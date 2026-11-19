@@ -24,20 +24,15 @@ export const HIDDEN_MODEL_IDS = new Set([
   "gemini-3.5-flash-lite",
   "gemini-3.6-flash",
   "gemini-3.7-flash",
-  // Claude 4.6: slated for removal (expected per Google's model rotation,
-  // 2026-11-18); still served at deprecation time. Replaced by the 5.5
-  // generation (prepared below).
-  "antigravity-claude-sonnet-4-6",
-  "antigravity-claude-opus-4-6-thinking",
   // --- Prepared: announced next-generation models that are NOT yet servable
-  // for current accounts (probe results 2026-11-18: the backend registry
-  // lists Gemini 4 entries only as disabled placeholders and returns 404 for
-  // bare ids; Claude 5.5 is not listed at all). Registered hidden so
-  // explicit requests route correctly the moment the backend starts serving
-  // them (e.g. on paid accounts); model discovery adds visible entries
-  // automatically for accounts that have them. (Gemini 4 Hydrogen is
-  // canonically visible instead: its catalog entry maps to the servable
-  // "sonar" experiment lane until the bare id goes live.)
+  // for current accounts (probe results 2026-11-18/19: the backend registry
+  // lists Gemini 4 Carbon/Argon/Hydrogen/Neon only as disabled placeholders
+  // and returns 404 for bare ids; Claude 5.5 is not listed at all).
+  // Registered hidden so explicit requests route correctly the moment the
+  // backend starts serving them (e.g. on paid accounts); model discovery adds
+  // visible entries automatically for V1 accounts that have them. (Gemini 4
+  // Hydrogen is canonically visible instead: its catalog entry maps to the
+  // servable "sonar" experiment lane until the bare id goes live.)
   "antigravity-gemini-4-carbon",
   "antigravity-gemini-4-argon",
   "antigravity-gemini-4-neon",
