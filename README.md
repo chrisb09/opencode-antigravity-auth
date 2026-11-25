@@ -153,7 +153,7 @@ Add the package root to `~/.config/opencode/cli.json`:
 
 ### What the backend serves
 
-Verified against the live registry (`fetchAvailableModels`) and real generation probes on **2026-11-19**. Antigravity splits quota into two pools — **Gemini** and **Claude/GPT** — so exhausting one leaves the other usable.
+The earlier model lineup was checked against the live registry (`fetchAvailableModels`) and generation probes on **2026-11-19**. Hydrogen routing has since changed; the tier-specific routes have not been independently generation-tested here. Antigravity splits quota into two pools — **Gemini** and **Claude/GPT** — so exhausting one leaves the other usable.
 
 | Model | OpenCode id | Variants | Context | Availability |
 |-------|-------------|----------|---------|--------------|
@@ -161,13 +161,13 @@ Verified against the live registry (`fetchAvailableModels`) and real generation 
 | Claude Sonnet 4.6 (Thinking) | `antigravity-claude-sonnet-4-6` | — | 250,000 | Current |
 | Claude Opus 4.6 (Thinking) | `antigravity-claude-opus-4-6-thinking` | `low`, `max` | 250,000 | Current |
 | GPT-OSS 120B (Medium) | `antigravity-gpt-oss-120b-medium` | — | 131,072 | Current |
-| Gemini 4 Hydrogen | `antigravity-gemini-4-hydrogen` | `low`, `medium`, `high` | 1,048,576 | Live, served from the `sonar` experiment lane |
+| Gemini 4 Hydrogen | `antigravity-gemini-4-hydrogen` | `low`, `medium`, `high`, `xhigh` | 1,048,576 | Tier-specific backend IDs; availability depends on the account |
 | Gemini 4 Carbon / Argon / Neon | `antigravity-gemini-4-{carbon,argon,neon}` | `low`, `medium`, `high` | 1,048,576 | Announced; backend returns 404 until enabled |
 | Claude Sonnet 5.5 / Opus 5.5 Thinking | `antigravity-claude-{sonnet,opus}-5-5…` | — / `low`, `max` | 250,000 | Prepared; not in the registry yet |
 
 > **Claude 4.6 status** — still fully served today and exposed as a normal model. Google is expected to retire the generation; when that happens the ids stay routable (hidden from the picker) and the prepared 5.5 entries take over. No action needed from you.
 
-> **Gemini 4 Hydrogen** — the backend only serves it through the `sonar` experiment lane (`gemini-4-hydrogen-sonar`). The plugin rewrites requests automatically and switches to the bare `gemini-4-hydrogen` id once the registry announces it.
+> **Gemini 4 Hydrogen** — requests use the corresponding `gemini-4-hydrogen-{low,medium,high,xhigh}` backend ID. The `sonar` lane is not used as a fallback: it appears to be an internal safety-monitor model, not the regular coding model. Google documents Hydrogen as available on all plans, including standard Pro trials; individual account provisioning may differ.
 
 ### Gemini CLI quota (legacy)
 
@@ -182,7 +182,7 @@ Verified against the live registry (`fetchAvailableModels`) and real generation 
 | Alias | Resolves to | Use |
 |-------|-------------|-----|
 | `antigravity-gemini-3.8-flash` | `gemini-3.8-flash` | Pins to Antigravity quota (no Gemini CLI fallback) |
-| `antigravity-gemini-4-hydrogen-sonar` | `gemini-4-hydrogen-sonar` | Direct experiment-lane id |
+| `antigravity-gemini-4-hydrogen-sonar` | `gemini-4-hydrogen-sonar` | Hidden legacy direct ID; not a regular coding-model fallback |
 | `gemini-flash-latest`, `gemini-3.8-flash-{minimal,low,medium,high}` | `gemini-3.8-flash` | `minimal` maps to `low` |
 
 ### Legacy ids (still resolve)
@@ -246,7 +246,8 @@ Only needed if your OpenCode version does not load plugin models dynamically. `o
           "variants": {
             "low": { "thinkingLevel": "low" },
             "medium": { "thinkingLevel": "medium" },
-            "high": { "thinkingLevel": "high" }
+            "high": { "thinkingLevel": "high" },
+            "xhigh": { "thinkingLevel": "xhigh" }
           }
         },
         "antigravity-gemini-3-flash": {
@@ -585,7 +586,7 @@ Disable its built-in Google auth to avoid conflicts, and point agent models at t
 Compared with upstream, this fork:
 
 - **Mirrors the verified `agy` wire protocol** — official CLI User-Agent (currently `1.5.11, cl=1024248524`), fixed `aicode-consumers` consumer project, `requestId`/trajectory `labels` format, uppercase `thinkingLevel`, and the genuine CLI system instruction with harness headers stripped. This is what passes the 2026-11-18 backend gates.
-- **Tracks the current model lineup** — Gemini 3.8 Flash consolidated into one canonical entry, Gemini 4 Hydrogen exposed via its servable experiment lane (registry-aware, self-switching when the public id goes live), GPT-OSS 120B added, Gemini 4 Carbon/Argon/Neon and Claude 5.5 prepared as hidden entries, and Claude 4.6 kept first-class until Google actually retires it.
+- **Tracks the current model lineup** — Gemini 3.8 Flash consolidated into one canonical entry, Gemini 4 Hydrogen routed to tier-specific backend IDs, GPT-OSS 120B added, Gemini 4 Carbon/Argon/Neon and Claude 5.5 prepared as hidden entries, and Claude 4.6 kept first-class until Google actually retires it.
 - **Hardens model discovery** — ignores disabled placeholder rows and internal helper models; adopts backend-reported context/output limits.
 - **Supports OpenCode V2** — separate `v2/` entrypoint, `antigravity/...` namespace, TUI slash commands.
 - **Commits `dist/`** — so `github:` installs work without a build step.

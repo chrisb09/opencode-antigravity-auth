@@ -1,6 +1,6 @@
 import type { HeaderStyle } from "../../constants";
 export type ModelFamily = "claude" | "gemini-flash" | "gemini-pro";
-export type ThinkingTier = "low" | "medium" | "high";
+export type ThinkingTier = "low" | "medium" | "high" | "xhigh";
 /**
  * Context for request transformation.
  * Contains all information needed to transform a request payload.

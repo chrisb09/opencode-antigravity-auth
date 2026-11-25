@@ -13,7 +13,6 @@ import { analyzeConversationState, closeToolLoopForThinking, needsThinkingRecove
 import { sanitizeCrossModelPayloadInPlace } from "./transform/cross-model-sanitizer";
 import { isGemini3Model, isImageGenerationModel, buildImageGenerationConfig, applyGeminiTransforms, sanitizeGeminiGenerationConfigForModel, } from "./transform";
 import { resolveModelForHeaderStyle, resolveAntigravityGemini35FlashBackendModel, resolveAntigravityGemini36FlashBackendModel, resolveAntigravityGemini37FlashBackendModel, resolveAntigravityGemini38FlashBackendModel, resolveAntigravityGemini4HydrogenBackendModel, getDefaultGemini3ThinkingLevel, isGeminiThinkingLevelModel, isClaudeModel, isClaudeThinkingModel, CLAUDE_THINKING_MAX_OUTPUT_TOKENS, } from "./transform";
-import { getCachedAntigravityAvailableModels } from "./model-catalog";
 import { detectErrorType } from "./recovery";
 import { getSessionFingerprint, buildFingerprintHeaders, } from "./fingerprint";
 const log = createLogger("request");
@@ -887,13 +886,6 @@ export function prepareAntigravityRequest(input, init, accessToken, projectId, e
     const requestedModel = rawModel;
     const resolved = resolveModelForHeaderStyle(rawModel, headerStyle);
     let effectiveModel = resolved.actualModel;
-    // Live model registry knowledge (last successful fetchAvailableModels):
-    // decides whether the bare public Gemini 4 Hydrogen id is served yet or
-    // requests must map to the servable "sonar" experiment lane. Cold/missing
-    // cache keeps the lane mapping (today's verified-working behavior).
-    const cachedRegistryModels = getCachedAntigravityAvailableModels();
-    const publicHydrogenRow = cachedRegistryModels?.["gemini-4-hydrogen"];
-    const gemini4HydrogenPublicEnabled = !!publicHydrogenRow && publicHydrogenRow.disabled !== true;
     const streaming = rawAction === STREAM_ACTION;
     const defaultEndpoint = headerStyle === "gemini-cli" ? GEMINI_CLI_ENDPOINT : ANTIGRAVITY_ENDPOINT;
     const baseEndpoint = endpointOverride ?? defaultEndpoint;
@@ -928,7 +920,7 @@ export function prepareAntigravityRequest(input, init, accessToken, projectId, e
                         requestObjects.push(nested);
                     }
                 }
-                if (effectiveModel.toLowerCase().includes("gemini-3")) {
+                if (isGeminiThinkingLevelModel(effectiveModel)) {
                     for (const req of requestObjects) {
                         const variantConfig = extractVariantThinkingConfig(req.providerOptions, req.generationConfig);
                         if (variantConfig?.thinkingLevel) {
@@ -949,7 +941,7 @@ export function prepareAntigravityRequest(input, init, accessToken, projectId, e
                     }
                 }
                 if (headerStyle === "antigravity") {
-                    const gemini4HydrogenBackendModel = resolveAntigravityGemini4HydrogenBackendModel(effectiveModel, tierThinkingLevel, gemini4HydrogenPublicEnabled);
+                    const gemini4HydrogenBackendModel = resolveAntigravityGemini4HydrogenBackendModel(effectiveModel, tierThinkingLevel);
                     const gemini38FlashBackendModel = resolveAntigravityGemini38FlashBackendModel(effectiveModel, tierThinkingLevel);
                     const gemini37FlashBackendModel = resolveAntigravityGemini37FlashBackendModel(effectiveModel, tierThinkingLevel);
                     const gemini36FlashBackendModel = resolveAntigravityGemini36FlashBackendModel(effectiveModel, tierThinkingLevel);
@@ -957,6 +949,7 @@ export function prepareAntigravityRequest(input, init, accessToken, projectId, e
                     if (gemini4HydrogenBackendModel) {
                         effectiveModel = gemini4HydrogenBackendModel;
                         wrappedBody.model = gemini4HydrogenBackendModel;
+                        tierThinkingLevel = gemini4HydrogenBackendModel.slice("gemini-4-hydrogen-".length);
                     }
                     else if (gemini38FlashBackendModel) {
                         effectiveModel = gemini38FlashBackendModel;
@@ -978,7 +971,7 @@ export function prepareAntigravityRequest(input, init, accessToken, projectId, e
                 const conversationKey = resolveConversationKeyFromRequests(requestObjects);
                 // Strip tier suffix from model for cache key to prevent cache misses on tier change
                 // e.g., "claude-opus-4-6-thinking-high" -> "claude-opus-4-6-thinking"
-                const modelForCacheKey = effectiveModel.replace(/-(minimal|low|medium|high)$/i, "");
+                const modelForCacheKey = effectiveModel.replace(/-(minimal|low|medium|high|xhigh)$/i, "");
                 signatureSessionKey = buildSignatureSessionKey(PLUGIN_SESSION_ID, modelForCacheKey, conversationKey, signatureCacheProjectKey(modelForCacheKey, resolveProjectKey(parsedBody.project)));
                 if (requestObjects.length > 0) {
                     sessionId = signatureSessionKey;
@@ -991,6 +984,10 @@ export function prepareAntigravityRequest(input, init, accessToken, projectId, e
                     ensureDefaultGemini3ThinkingLevel(req, effectiveModel, headerStyle === "antigravity" && tierThinkingLevel
                         ? tierThinkingLevel.toUpperCase()
                         : tierThinkingLevel);
+                    if (/^gemini-4-hydrogen-(?:low|medium|high|xhigh)$/i.test(effectiveModel)) {
+                        const config = req.generationConfig.thinkingConfig;
+                        config.thinkingLevel = tierThinkingLevel?.toUpperCase();
+                    }
                     if (isClaude) {
                         // Steps 0-2: cross-model strip, thinking-block filtering, cache_control,
                         // and signed-thinking re-injection (shared with the non-wrapped branch).
@@ -1058,13 +1055,14 @@ export function prepareAntigravityRequest(input, init, accessToken, projectId, e
                     }
                 }
                 if (headerStyle === "antigravity") {
-                    const gemini4HydrogenBackendModel = resolveAntigravityGemini4HydrogenBackendModel(effectiveModel, tierThinkingLevel, gemini4HydrogenPublicEnabled);
+                    const gemini4HydrogenBackendModel = resolveAntigravityGemini4HydrogenBackendModel(effectiveModel, tierThinkingLevel);
                     const gemini38FlashBackendModel = resolveAntigravityGemini38FlashBackendModel(effectiveModel, tierThinkingLevel);
                     const gemini37FlashBackendModel = resolveAntigravityGemini37FlashBackendModel(effectiveModel, tierThinkingLevel);
                     const gemini36FlashBackendModel = resolveAntigravityGemini36FlashBackendModel(effectiveModel, tierThinkingLevel);
                     const gemini35FlashBackendModel = resolveAntigravityGemini35FlashBackendModel(effectiveModel, tierThinkingLevel);
                     if (gemini4HydrogenBackendModel) {
                         effectiveModel = gemini4HydrogenBackendModel;
+                        tierThinkingLevel = gemini4HydrogenBackendModel.slice("gemini-4-hydrogen-".length);
                     }
                     else if (gemini38FlashBackendModel) {
                         effectiveModel = gemini38FlashBackendModel;

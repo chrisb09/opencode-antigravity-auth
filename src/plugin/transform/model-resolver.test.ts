@@ -384,11 +384,6 @@ describe("resolveModelWithTier", () => {
   });
 
   describe("Gemini 4 models", () => {
-    // The Gemini 4 line (Carbon/Argon/Hydrogen/Neon) uses bare backend ids
-    // with uppercase thinkingLevel strings, verified live on the hydrogen
-    // "sonar" experiment lane (2026-11-18). Tier suffixes must be stripped
-    // into thinkingLevel, never numeric budgets.
-
     it("antigravity-gemini-4-hydrogen defaults to medium thinkingLevel (bare backend id; lane mapping happens at request time)", () => {
       const result = resolveModelWithTier("antigravity-gemini-4-hydrogen");
       expect(result.actualModel).toBe("gemini-4-hydrogen");
@@ -399,28 +394,22 @@ describe("resolveModelWithTier", () => {
       expect(result.explicitQuota).toBe(true);
     });
 
-    it("maps Hydrogen to the sonar experiment lane by default", () => {
-      const result = resolveAntigravityGemini4HydrogenBackendModel(
-        "antigravity-gemini-4-hydrogen",
-      );
-      expect(result).toBe("gemini-4-hydrogen-sonar");
-    });
+    it.each(["low", "medium", "high", "xhigh"])(
+      "routes Hydrogen %s to the matching backend tier",
+      (level) => {
+        expect(resolveAntigravityGemini4HydrogenBackendModel("antigravity-gemini-4-hydrogen", level))
+          .toBe(`gemini-4-hydrogen-${level}`);
+        const resolved = resolveModelWithTier(`antigravity-gemini-4-hydrogen-${level}`);
+        expect(resolved.actualModel).toBe("gemini-4-hydrogen");
+        expect(resolved.thinkingLevel).toBe(level);
+      },
+    );
 
-    it("sends the bare Hydrogen id once the registry announces it enabled", () => {
-      const result = resolveAntigravityGemini4HydrogenBackendModel(
-        "antigravity-gemini-4-hydrogen",
-        "medium",
-        true,
-      );
-      expect(result).toBe("gemini-4-hydrogen");
-    });
-
-    it("maps tier-suffixed Hydrogen ids to the lane too (tier carried via thinkingLevel)", () => {
-      expect(
-        resolveAntigravityGemini4HydrogenBackendModel(
-          "antigravity-gemini-4-hydrogen-high",
-        ),
-      ).toBe("gemini-4-hydrogen-sonar");
+    it("defaults Hydrogen to medium and honors a tier suffix", () => {
+      expect(resolveAntigravityGemini4HydrogenBackendModel("gemini-4-hydrogen"))
+        .toBe("gemini-4-hydrogen-medium");
+      expect(resolveAntigravityGemini4HydrogenBackendModel("gemini-4-hydrogen-high"))
+        .toBe("gemini-4-hydrogen-high");
     });
 
     it("leaves direct sonar-lane strings and non-Hydrogen models untouched", () => {

@@ -530,6 +530,78 @@ describe("request.ts", () => {
     const mockAccessToken = "test-token";
     const mockProjectId = "test-project";
 
+    it.each(["low", "medium", "high", "xhigh"])(
+      "routes unwrapped Hydrogen %s variants to their matching backend ID",
+      (level) => {
+        const result = prepareAntigravityRequest(
+          "https://generativelanguage.googleapis.com/v1beta/models/antigravity-gemini-4-hydrogen:generateContent",
+          { method: "POST", body: JSON.stringify({
+            contents: [],
+            generationConfig: { thinkingConfig: { thinkingLevel: level } },
+          }) },
+          mockAccessToken,
+          mockProjectId,
+          undefined,
+          "antigravity",
+        );
+        const body = JSON.parse(result.init.body as string);
+        expect(body.model).toBe(`gemini-4-hydrogen-${level}`);
+        expect(body.request.generationConfig.thinkingConfig.thinkingLevel).toBe(level.toUpperCase());
+      },
+    );
+
+    it("routes wrapped Hydrogen based on its thinking variant", () => {
+      const result = prepareAntigravityRequest(
+        "https://generativelanguage.googleapis.com/v1beta/models/antigravity-gemini-4-hydrogen:generateContent",
+        { method: "POST", body: JSON.stringify({
+          project: mockProjectId,
+          request: { contents: [], generationConfig: { thinkingConfig: { thinkingLevel: "xhigh" } } },
+        }) },
+        mockAccessToken,
+        mockProjectId,
+        undefined,
+        "antigravity",
+      );
+      const body = JSON.parse(result.init.body as string);
+      expect(body.model).toBe("gemini-4-hydrogen-xhigh");
+      expect(body.request.generationConfig.thinkingConfig.thinkingLevel).toBe("XHIGH");
+    });
+
+    it("routes an explicit Hydrogen xhigh model suffix without a variant", () => {
+      const result = prepareAntigravityRequest(
+        "https://generativelanguage.googleapis.com/v1beta/models/antigravity-gemini-4-hydrogen-xhigh:generateContent",
+        { method: "POST", body: JSON.stringify({ contents: [] }) },
+        mockAccessToken,
+        mockProjectId,
+        undefined,
+        "antigravity",
+      );
+      const body = JSON.parse(result.init.body as string);
+      expect(body.model).toBe("gemini-4-hydrogen-xhigh");
+      expect(body.request.generationConfig.thinkingConfig.thinkingLevel).toBe("XHIGH");
+    });
+
+    it("uses the wrapped provider option over the model suffix for Hydrogen", () => {
+      const result = prepareAntigravityRequest(
+        "https://generativelanguage.googleapis.com/v1beta/models/antigravity-gemini-4-hydrogen-high:generateContent",
+        { method: "POST", body: JSON.stringify({
+          project: mockProjectId,
+          request: {
+            contents: [],
+            providerOptions: { google: { thinkingLevel: "xhigh" } },
+            generationConfig: { thinkingConfig: { thinkingLevel: "low" } },
+          },
+        }) },
+        mockAccessToken,
+        mockProjectId,
+        undefined,
+        "antigravity",
+      );
+      const body = JSON.parse(result.init.body as string);
+      expect(body.model).toBe("gemini-4-hydrogen-xhigh");
+      expect(body.request.generationConfig.thinkingConfig.thinkingLevel).toBe("XHIGH");
+    });
+
     it("returns unchanged request for non-generative-language URLs", () => {
       const result = prepareAntigravityRequest(
         "https://example.com/api",

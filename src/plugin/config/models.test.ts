@@ -83,6 +83,7 @@ describe("OPENCODE_MODEL_DEFINITIONS", () => {
       low: { thinkingLevel: "low" },
       medium: { thinkingLevel: "medium" },
       high: { thinkingLevel: "high" },
+      xhigh: { thinkingLevel: "xhigh" },
     });
   });
 });
@@ -213,7 +214,7 @@ describe("dynamic model discovery helpers", () => {
     // Observed in the real fetchAvailableModels response (2026-11-18): the
     // Gemini 4 lineup is announced as "-disabled"-suffixed placeholder rows
     // that 404 on generation, alongside internal chat_*/tab_* helpers, with
-    // the served "gemini-4-hydrogen-sonar" lane duplicating its parent id.
+    // the internal "gemini-4-hydrogen-sonar" monitor slot.
     const models = modelsFromAntigravityAvailableModels({
       "gemini-4-carbon-disabled": {
         displayName: "Gemini 4 Carbon",

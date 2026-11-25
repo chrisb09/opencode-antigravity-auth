@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **Gemini 4 Hydrogen routing** - Route the `low`, `medium`, `high`, and new `xhigh` variants to their matching tier-specific backend IDs instead of automatically using `gemini-4-hydrogen-sonar`. The sonar lane appears to serve an internal safety monitor and is not a substitute for the regular coding model. The earlier sonar-routing notes below describe the previous behavior.
+
 ### Added
 
 - **Gemini 4 model line support (2026-11-18)** - The backend's `fetchAvailableModels` registry now announces the Gemini 4 line. Probed from a live agy 1.5.11 session:

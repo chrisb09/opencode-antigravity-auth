@@ -1,5 +1,5 @@
 import type { ProviderModel } from "../types";
-export type ModelThinkingLevel = "minimal" | "low" | "medium" | "high";
+export type ModelThinkingLevel = "minimal" | "low" | "medium" | "high" | "xhigh";
 export interface ModelThinkingConfig {
     thinkingBudget: number;
 }

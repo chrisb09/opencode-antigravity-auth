@@ -82,7 +82,6 @@ import {
   CLAUDE_THINKING_MAX_OUTPUT_TOKENS,
   type ThinkingTier,
 } from "./transform";
-import { getCachedAntigravityAvailableModels } from "./model-catalog";
 import { detectErrorType } from "./recovery";
 import {
   getSessionFingerprint,
@@ -1352,15 +1351,6 @@ export function prepareAntigravityRequest(
   const resolved = resolveModelForHeaderStyle(rawModel, headerStyle);
   let effectiveModel = resolved.actualModel;
 
-  // Live model registry knowledge (last successful fetchAvailableModels):
-  // decides whether the bare public Gemini 4 Hydrogen id is served yet or
-  // requests must map to the servable "sonar" experiment lane. Cold/missing
-  // cache keeps the lane mapping (today's verified-working behavior).
-  const cachedRegistryModels = getCachedAntigravityAvailableModels();
-  const publicHydrogenRow = cachedRegistryModels?.["gemini-4-hydrogen"];
-  const gemini4HydrogenPublicEnabled =
-    !!publicHydrogenRow && publicHydrogenRow.disabled !== true;
-
   const streaming = rawAction === STREAM_ACTION;
   const defaultEndpoint =
     headerStyle === "gemini-cli" ? GEMINI_CLI_ENDPOINT : ANTIGRAVITY_ENDPOINT;
@@ -1410,7 +1400,7 @@ export function prepareAntigravityRequest(
           }
         }
 
-        if (effectiveModel.toLowerCase().includes("gemini-3")) {
+        if (isGeminiThinkingLevelModel(effectiveModel)) {
           for (const req of requestObjects) {
             const variantConfig = extractVariantThinkingConfig(
               (req as any).providerOptions as
@@ -1443,7 +1433,6 @@ export function prepareAntigravityRequest(
             resolveAntigravityGemini4HydrogenBackendModel(
               effectiveModel,
               tierThinkingLevel,
-              gemini4HydrogenPublicEnabled,
             );
           const gemini38FlashBackendModel =
             resolveAntigravityGemini38FlashBackendModel(
@@ -1468,6 +1457,7 @@ export function prepareAntigravityRequest(
           if (gemini4HydrogenBackendModel) {
             effectiveModel = gemini4HydrogenBackendModel;
             wrappedBody.model = gemini4HydrogenBackendModel;
+            tierThinkingLevel = gemini4HydrogenBackendModel.slice("gemini-4-hydrogen-".length);
           } else if (gemini38FlashBackendModel) {
             effectiveModel = gemini38FlashBackendModel;
             wrappedBody.model = gemini38FlashBackendModel;
@@ -1488,7 +1478,7 @@ export function prepareAntigravityRequest(
         // Strip tier suffix from model for cache key to prevent cache misses on tier change
         // e.g., "claude-opus-4-6-thinking-high" -> "claude-opus-4-6-thinking"
         const modelForCacheKey = effectiveModel.replace(
-          /-(minimal|low|medium|high)$/i,
+          /-(minimal|low|medium|high|xhigh)$/i,
           "",
         );
         signatureSessionKey = buildSignatureSessionKey(
@@ -1520,6 +1510,10 @@ export function prepareAntigravityRequest(
               ? tierThinkingLevel.toUpperCase()
               : tierThinkingLevel,
           );
+          if (/^gemini-4-hydrogen-(?:low|medium|high|xhigh)$/i.test(effectiveModel)) {
+            const config = (req as any).generationConfig.thinkingConfig;
+            config.thinkingLevel = tierThinkingLevel?.toUpperCase();
+          }
 
           if (isClaude) {
             // Steps 0-2: cross-model strip, thinking-block filtering, cache_control,
@@ -1624,7 +1618,6 @@ export function prepareAntigravityRequest(
             resolveAntigravityGemini4HydrogenBackendModel(
               effectiveModel,
               tierThinkingLevel,
-              gemini4HydrogenPublicEnabled,
             );
           const gemini38FlashBackendModel =
             resolveAntigravityGemini38FlashBackendModel(
@@ -1648,6 +1641,7 @@ export function prepareAntigravityRequest(
             );
           if (gemini4HydrogenBackendModel) {
             effectiveModel = gemini4HydrogenBackendModel;
+            tierThinkingLevel = gemini4HydrogenBackendModel.slice("gemini-4-hydrogen-".length);
           } else if (gemini38FlashBackendModel) {
             effectiveModel = gemini38FlashBackendModel;
           } else if (gemini37FlashBackendModel) {

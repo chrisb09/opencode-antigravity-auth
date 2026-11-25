@@ -1,6 +1,6 @@
 import type { ProviderModel } from "../types";
 
-export type ModelThinkingLevel = "minimal" | "low" | "medium" | "high";
+export type ModelThinkingLevel = "minimal" | "low" | "medium" | "high" | "xhigh";
 
 export interface ModelThinkingConfig {
   thinkingBudget: number;
@@ -116,15 +116,7 @@ export const OPENCODE_MODEL_DEFINITIONS: OpencodeModelDefinitions = {
     modalities: { input: ["text"], output: ["text"] },
   },
   "antigravity-gemini-4-hydrogen": {
-    // Public-facing Gemini 4 Hydrogen entry. The backend does not yet serve
-    // the bare id (a "-disabled" registry stub, 404 on generate); requests
-    // are rewritten to the servable "sonar" experiment-lane id
-    // gemini-4-hydrogen-sonar — see resolveAntigravityGemini4HydrogenBackend-
-    // Model for what "sonar" is. The rewrite is registry-aware: once the
-    // registry lists the bare id enabled (e.g. at public launch), it is sent
-    // verbatim. Live on the lane since 2026-11-18 (~1.4-4.6s TTFB while 3.8
-    // Flash was heavily queued). Accepts uppercase thinkingLevel strings
-    // like the Gemini 3 line.
+    // Hydrogen routes to the backend ID matching the selected thinking level.
     name: "Gemini 4 Hydrogen (Antigravity)",
     limit: { context: 1048576, output: 65536 },
     modalities: DEFAULT_MODALITIES,
@@ -132,6 +124,7 @@ export const OPENCODE_MODEL_DEFINITIONS: OpencodeModelDefinitions = {
       low: { thinkingLevel: "low" },
       medium: { thinkingLevel: "medium" },
       high: { thinkingLevel: "high" },
+      xhigh: { thinkingLevel: "xhigh" },
     },
   },
   "gemini-2.5-flash": {
@@ -183,14 +176,11 @@ function defaultVariantsForModel(modelId: string): Record<string, ModelVariant> 
     };
   }
   if (normalized.startsWith("gemini-4")) {
-    // Gemini 4 line (Carbon/Argon/Hydrogen/Neon): uppercase thinkingLevel
-    // strings verified live on gemini-4-hydrogen-sonar (2026-11-18). No
-    // minimal tier advertised; minThinkingBudget >= 32 suggests low is the
-    // floor.
     return {
       low: { thinkingLevel: "low" },
       medium: { thinkingLevel: "medium" },
       high: { thinkingLevel: "high" },
+      ...(normalized.startsWith("gemini-4-hydrogen") ? { xhigh: { thinkingLevel: "xhigh" as const } } : {}),
     };
   }
   if (normalized.startsWith("gemini-3") || normalized.startsWith("gemini-2.5")) {
@@ -277,10 +267,7 @@ export function modelsFromAntigravityAvailableModels(
     // Skip backend stubs: rows flagged disabled are UI placeholders backed by
     // no servable model id (verified 2026-11-18: "gemini-4-<element>-disabled"
     // rows return 404 on generation while listed), and internal helper models
-    // power IDE features only. "-sonar"-suffixed rows are experiment-lane
-    // duplicates of their parent model (the parent id is canonically mapped
-    // to the lane by the resolver), so the lane row itself needs no catalog
-    // entry.
+    // power IDE features only. Sonar rows appear to be internal monitors.
     if (entry.disabled === true || entry.isInternal === true) continue;
     if (/-sonar$/i.test(sourceId)) continue;
     const modelId = antigravityModelIdFromEntry(sourceId, entry);
